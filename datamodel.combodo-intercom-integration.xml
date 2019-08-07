@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.6">
+	<module_parameters>
+		<parameters id="combodo-intercom-integration" _delta="define">
+			<api_key>PUT_YOUR_API_KEY_HERE</api_key>
+		</parameters>
+	</module_parameters>
+</itop_design>
