@@ -105,10 +105,15 @@ class ConfigHelper
 	public static function GetWidgetJSSnippet()
 	{
 		// Retrieve current person
+		$sPersonNameAsJson = 'Unidentified visitor';
+		$sPersonEmailAsJson = '';
 		/** @var \DBObject $oPerson */
 		$oPerson = UserRights::GetContactObject();
-		$sPersonName = $oPerson->GetName();
-		$sPersonEmail = $oPerson->Get('email');
+		if($oPerson !== null)
+		{
+			$sPersonNameAsJson = json_encode($oPerson->GetName());
+			$sPersonEmailAsJson = json_encode($oPerson->Get('email'));
+		}
 
 		// Retrieve API key
 		$sAPIKey = static::GetModuleSetting('api_key');
@@ -118,8 +123,8 @@ class ConfigHelper
 			<<<JS
 window.intercomSettings = {
     app_id: "{$sAPIKey}",
-    name: "{$sPersonName}", // Full name
-    email: "{$sPersonEmail}", // Email address
+    name: {$sPersonNameAsJson}, // Full name
+    email: {$sPersonEmailAsJson}, // Email address
     //created_at: "" // Signup date as a Unix timestamp
 };
 
