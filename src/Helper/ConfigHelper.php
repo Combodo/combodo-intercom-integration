@@ -122,10 +122,10 @@ class ConfigHelper
 		$sJS =
 			<<<JS
 window.intercomSettings = {
+    api_base: "https://api-iam.intercom.io",
     app_id: "{$sAPIKey}",
     name: {$sPersonNameAsJson}, // Full name
     email: {$sPersonEmailAsJson}, // Email address
-    //created_at: "" // Signup date as a Unix timestamp
 };
 
 (function() {
