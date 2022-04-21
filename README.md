@@ -1,8 +1,7 @@
-# Intercom chat integration
+# iTop module: Chat integration with Intercom
 
-_Note: Prototype to show how to integrate a third-party chat(bot) in iTop through the existing APIs._
+## About
 
-## Description
 [Intercom](https://www.intercom.com/) is a paid, hosted, third-party, live support chat that can be easily integrated within iTop to offer a new contact channel. It's a perfect way to enable live chat in iTop with a minimal effort but needs a subscription.
 
 ## Features
@@ -39,3 +38,19 @@ First, go to the intercom.com backoffice and retrieve the `API Key`. Once you go
     'allowed_profiles' => array('Portal user'),
 ),
 ```
+
+## About Us
+
+This iTop module development is sponsored, led and supported by [Combodo](https://www.combodo.com).
+
+## Contributors
+
+We would like to give a special thank you to the people from the community who contributed to this project, including:
+
+### Names
+
+_None yet, check the [contributing guide](CONTRIBUTING.md) and be the first to contribute!_
+
+### Companies
+
+_None yet_
