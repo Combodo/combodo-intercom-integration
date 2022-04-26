@@ -20,11 +20,11 @@
 /** @noinspection PhpUnhandledExceptionInspection */
 SetupWebPage::AddModule(
 	__FILE__, // Path to the current file, all other file names are relative to the directory containing this file
-	'combodo-intercom-integration/0.0.1',
+	'combodo-intercom-integration/1.0.0',
 	array(
 		// Identification
 		//
-		'label' => 'Intercom messenger integration',
+		'label' => 'Chat integration with Intercom',
 		'category' => 'integration',
 
 		// Setup

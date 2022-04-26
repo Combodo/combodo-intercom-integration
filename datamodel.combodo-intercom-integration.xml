@@ -2,7 +2,11 @@
 <itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.6">
 	<module_parameters>
 		<parameters id="combodo-intercom-integration" _delta="define">
-			<api_key>PUT_YOUR_API_KEY_HERE</api_key>
+			<workspaces type="hash">
+				<!-- Set one line per workspace, allowing one chat widget / chat dashboard per matching OQL -->
+				<!-- By default, everyone (see allowed profiles) will access the same workspace -->
+				<PUT_YOUT_WORKSPACE_ID_HERE><![CDATA[SELECT Organization]]></PUT_YOUT_WORKSPACE_ID_HERE>
+			</workspaces>
 			<enabled_portals type="array">
 				<enabled_portal id="itop-portal">itop-portal</enabled_portal>
 			</enabled_portals>

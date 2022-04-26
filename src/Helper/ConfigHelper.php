@@ -20,6 +20,8 @@
 
 namespace Combodo\iTop\Extension\IntercomIntegration\Helper;
 
+use DBObjectSearch;
+use DBObjectSet;
 use MetaModel;
 use UserRights;
 
@@ -104,6 +106,8 @@ class ConfigHelper
 	 */
 	public static function GetWidgetJSSnippet()
 	{
+		$sJS = '';
+
 		// Retrieve current person
 		$sPersonNameAsJson = 'Unidentified visitor';
 		$sPersonEmailAsJson = '';
@@ -115,15 +119,18 @@ class ConfigHelper
 			$sPersonEmailAsJson = json_encode($oPerson->Get('email'));
 		}
 
-		// Retrieve API key
-		$sAPIKey = static::GetModuleSetting('api_key');
+		// Found first matching workspace
+		$aWorkspaces = static::GetModuleSetting('workspaces');
+		foreach ($aWorkspaces as $sWorkspaceID => $sOQL) {
+			$oSearch = DBObjectSearch::FromOQL($sOQL);
+			$oSet = new DBObjectSet($oSearch);
 
-		// Nothing
-		$sJS =
-			<<<JS
+			$iCount = (int) $oSet->CountWithLimit(1);
+			if ($iCount > 0) {
+				$sJS .= <<<JS
 window.intercomSettings = {
     api_base: "https://api-iam.intercom.io",
-    app_id: "{$sAPIKey}",
+    app_id: "{$sWorkspaceID}",
     name: {$sPersonNameAsJson}, // Full name
     email: {$sPersonEmailAsJson}, // Email address
 };
@@ -148,7 +155,7 @@ window.intercomSettings = {
             var s = d.createElement('script');
             s.type = 'text/javascript';
             s.async = true;
-            s.src = 'https://widget.intercom.io/widget/{$sAPIKey}';
+            s.src = 'https://widget.intercom.io/widget/{$sWorkspaceID}';
             var x = d.getElementsByTagName('script')[0];
             x.parentNode.insertBefore(s, x);
         };
@@ -161,6 +168,9 @@ window.intercomSettings = {
 })();
 JS
 		;
+				break;
+			}
+		}
 
 		return $sJS;
 	}
