@@ -121,8 +121,8 @@ class ConfigHelper
 
 		// Found first matching workspace
 		$aWorkspaces = static::GetModuleSetting('workspaces');
-		foreach ($aWorkspaces as $sWorkspaceID => $sOQL) {
-			$oSearch = DBObjectSearch::FromOQL($sOQL);
+		foreach ($aWorkspaces as $sWorkspaceID => $aWorkspaceConf) {
+			$oSearch = DBObjectSearch::FromOQL($aWorkspaceConf['scope']);
 			$oSet = new DBObjectSet($oSearch);
 
 			$iCount = (int) $oSet->CountWithLimit(1);

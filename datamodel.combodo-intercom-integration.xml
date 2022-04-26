@@ -5,7 +5,9 @@
 			<workspaces type="hash">
 				<!-- Set one line per workspace, allowing one chat widget / chat dashboard per matching OQL -->
 				<!-- By default, everyone (see allowed profiles) will access the same workspace -->
-				<PUT_YOUT_WORKSPACE_ID_HERE><![CDATA[SELECT Organization]]></PUT_YOUT_WORKSPACE_ID_HERE>
+				<PUT_YOUR_WORKSPACE_ID_HERE type="hash">
+					<scope><![CDATA[SELECT Organization]]></scope>
+				</PUT_YOUR_WORKSPACE_ID_HERE>
 			</workspaces>
 			<enabled_portals type="array">
 				<enabled_portal id="itop-portal">itop-portal</enabled_portal>
