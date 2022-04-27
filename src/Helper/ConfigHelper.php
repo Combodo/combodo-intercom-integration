@@ -104,6 +104,9 @@ class ConfigHelper
 		{
 			$sPersonNameAsJson = json_encode($oPerson->GetName());
 			$sPersonEmailAsJson = json_encode($oPerson->Get('email'));
+			// Class/ID are mandatory for reconciliation instead of just email/friendlyname, especially when a contact becomes obsolete and is re-created on another object later
+			$sPersonClassAsJson = json_encode(get_class($oPerson));
+			$sPersonIDAsJson = json_encode($oPerson->GetKey());
 		}
 
 		// Found first matching workspace
@@ -120,6 +123,10 @@ window.intercomSettings = {
     app_id: "{$sWorkspaceID}",
     name: {$sPersonNameAsJson}, // Full name
     email: {$sPersonEmailAsJson}, // Email address
+    // Note: We don't preset the user_id attribute as we recon that in Intercom contacts might be referenced in something else than iTop (eg. a CRM)
+    //       For more information about "custom attributes" see https://developers.intercom.com/installing-intercom/docs/adding-custom-information
+    itop_contact_class: {$sPersonClassAsJson},
+    itop_contact_id: {$sPersonIDAsJson},
 };
 
 (function() {

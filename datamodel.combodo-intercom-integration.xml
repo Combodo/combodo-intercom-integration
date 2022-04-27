@@ -1,5 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.6">
+<itop_design xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.7">
+	<classes>
+		<class id="UserRequest" _delta="must_exist">
+			<fields>
+				<field id="origin" _delta="must_exist">
+					<values>
+						<value id="chat" _delta="define_if_not_exists">
+							<code>chat</code>
+						</value>
+					</values>
+				</field>
+				<field id="intercom_ref" xsi:type="AttributeString" _delta="define">
+					<sql>intercom_ref</sql>
+					<default_value/>
+					<is_null_allowed>true</is_null_allowed>
+				</field>
+			</fields>
+			<presentation>
+				<details>
+					<items>
+						<item id="col:col3" _delta="must_exist">
+							<items>
+								<item id="fieldset:Ticket:relation" _delta="must_exist">
+									<items>
+										<item id="intercom_ref" _delta="define">
+											<rank>100</rank>
+										</item>
+									</items>
+								</item>
+							</items>
+						</item>
+					</items>
+				</details>
+			</presentation>
+		</class>
+	</classes>
 	<module_parameters>
 		<parameters id="combodo-intercom-integration" _delta="define">
 			<workspaces type="hash">
@@ -9,6 +44,33 @@
 					<scope><![CDATA[SELECT Organization]]></scope>
 				</PUT_YOUR_WORKSPACE_ID_HERE>
 			</workspaces>
+			<!-- Used to authenticate incoming requests -->
+			<sync_app.client_secret>PUT_YOUR_APP_CLIENT_SECRET_HERE</sync_app.client_secret>
+			<!-- Used to authenticate outgoing requests -->
+			<sync_app.access_token>PUT_YOUR_APP_ACCESS_TOKEN_HERE</sync_app.access_token>
+			<sync_app.ticket.class>UserRequest</sync_app.ticket.class>
+			<sync_app.ticket.attributes_mapping type="hash">
+				<org_id>org_id</org_id>
+				<caller_id>caller_id</caller_id>
+				<status>status</status>
+				<intercom_ref>intercom_ref</intercom_ref>
+			</sync_app.ticket.attributes_mapping>
+			<sync_app.create_ticket.form_attributes type="array"></sync_app.create_ticket.form_attributes>
+			<sync_app.search_ticket.done_states type="array">
+				<state>rejected</state>
+				<state>closed</state>
+			</sync_app.search_ticket.done_states>
+			<sync_app.search_ticket.subtitle_attribute>title</sync_app.search_ticket.subtitle_attribute>
+			<sync_app.view_ticket.details_attributes type="array">
+				<attribute>status</attribute>
+				<attribute>title</attribute>
+				<attribute>description</attribute>
+				<attribute>start_date</attribute>
+				<attribute>last_update</attribute>
+			</sync_app.view_ticket.details_attributes>
+			<!-- Only makes sense if Intercom support agents have access to iTop backoffice -->
+			<sync_app.view_ticket.show_open_in_backoffice_button type="bool">true</sync_app.view_ticket.show_open_in_backoffice_button>
+			<sync_app.portal_url_maker_class>iTopPortalViewUrlMaker</sync_app.portal_url_maker_class>
 			<enabled_portals type="array">
 				<enabled_portal id="itop-portal">itop-portal</enabled_portal>
 			</enabled_portals>

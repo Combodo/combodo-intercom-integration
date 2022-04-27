@@ -21,9 +21,16 @@ class ComposerStaticInitfe626b7edf4c50f84f22dfa0d3a90ed8
     );
 
     public static $classMap = array (
-        'Combodo\\iTop\\Extension\\IntercomIntegration\\Extension\\ConsoleUIExtension' => __DIR__ . '/../..' . '/src/Hook/ConsoleUIExtension.php',
-        'Combodo\\iTop\\Extension\\IntercomIntegration\\Extension\\PortalUIExtension' => __DIR__ . '/../..' . '/src/Hook/PortalUIExtension.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\ConfigHelper' => __DIR__ . '/../..' . '/src/Helper/ConfigHelper.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Admin' => __DIR__ . '/../..' . '/src/Model/Intercom/Admin.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Contact' => __DIR__ . '/../..' . '/src/Model/Intercom/Contact.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Conversation' => __DIR__ . '/../..' . '/src/Model/Intercom/Conversation.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\AbstractIncomingEventsHandler' => __DIR__ . '/../..' . '/src/Service/API/Inbound/AbstractIncomingEventsHandler.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\IncomingCanvasKitsHandler' => __DIR__ . '/../..' . '/src/Service/API/Inbound/IncomingCanvasKitsHandler.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\IncomingWebhooksHandler' => __DIR__ . '/../..' . '/src/Service/API/Inbound/IncomingWebhooksHandler.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Outbound\\ApiRequestSender' => __DIR__ . '/../..' . '/src/Service/API/Outbound/ApiRequestSender.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Outbound\\ApiUrlGenerator' => __DIR__ . '/../..' . '/src/Service/API/Outbound/ApiUrlGenerator.php',
+        'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
     );
 
     public static function getInitializer(ClassLoader $loader)
