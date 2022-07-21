@@ -9,6 +9,7 @@
 namespace Combodo\iTop\Extension\IntercomIntegration\Model\Intercom;
 
 
+use Combodo\iTop\Extension\IntercomIntegration\Exception\ModuleException;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
 use Exception;
 use IssueLog;
@@ -41,9 +42,11 @@ class Admin
 	public static function FromCanvasKitInitializeConversationDetailsData($aData)
 	{
 		if (false === isset($aData['admin'])) {
-			$sErrorMessage = ConfigHelper::GetModuleCode().': Could not create admin model from Canvas Kit initialize Conversation Details as there is no "admin" entry in the data';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode());
-			throw new Exception($sErrorMessage);
+			$sErrorMessage = 'Could not create admin model from Canvas Kit initialize Conversation Details as there is no "admin" entry in the data';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
+				'data' => $aData,
+			]);
+			throw new ModuleException($sErrorMessage);
 		}
 
 		return new static($aData['admin']);

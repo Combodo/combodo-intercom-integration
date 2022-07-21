@@ -8,13 +8,19 @@ namespace Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound;
 
 use ApplicationContext;
 use AttributeCaseLog;
+use AttributeExternalKey;
 use AttributeText;
+use Combodo\iTop\Extension\IntercomIntegration\Exception\ModuleException;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
+use Combodo\iTop\Extension\IntercomIntegration\Helper\IconHelper;
 use Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Admin;
 use Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Contact;
 use Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Conversation;
+use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit\AlertComponentsFactory;
+use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit\ComponentFactory;
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Outbound\ApiRequestSender;
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Outbound\ApiUrlGenerator;
+use DBObject;
 use DBObjectSearch;
 use DBObjectSet;
 use Dict;
@@ -46,10 +52,10 @@ use utils;
  */
 class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 {
+	/** @var string Type of list displayed in the Canvas Kit */
 	const ENUM_TICKETS_LIST_TYPE_LINKED = 'linked';
+	/** @var string Type of list displayed in the Canvas Kit */
 	const ENUM_TICKETS_LIST_TYPE_ONGOING = 'ongoing';
-	const ENUM_ICONS_PROVIDER_MATERIAL_IO = 'material.io';
-	const ENUM_ICONS_PROVIDER_ICONS8 = 'icons8';
 
 	/** @var int Max. number of tickets displayed in the Canvas Kit, this is to avoid UI to be too difficult to read and to exceed response's Canvas Kit's "content" max size */
 	const MAX_TICKETS_DISPLAY = 30;
@@ -59,10 +65,6 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	const COMPONENT_ID_VIEW_ONGOING_TICKET_PREFIX = 'view-ongoing-ticket';
 	/** @var string Prefix of "component_id" for IDs that aim at linking a specific ticket (class/ID will be append) */
 	const COMPONENT_ID_LINK_TICKET_PREFIX = 'link-ticket';
-	/** @var int Width in pixels of an icon displayed in a canvas header */
-	const HEADER_ICON_WIDTH = 32;
-	/** @var int Height in pixels of an icon displayed in a canvas header */
-	const HEADER_ICON_HEIGHT = 32;
 	/** @var int Width in pixels of an icon displayed as decoration in a list item */
 	const LIST_ITEM_ICON_WIDTH = 18;
 	/** @var int Height in pixels of an icon displayed as decoration in a list item */
@@ -117,25 +119,25 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 
 				$sOperationCallbackName = 'Operation_'.utils::ToCamelCase($sOperation).'Flow_'.utils::ToCamelCase($sProcessedComponentID).'Component';
 				if (false === is_callable([static::class, $sOperationCallbackName])) {
-					$sErrorMessage = ConfigHelper::GetModuleCode().': Callback method for operation not found';
-					IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode(), [
+					$sErrorMessage = 'Callback method for operation not found';
+					IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
 						'operation' => $sOperation,
 						'component_id' => $sComponentID,
 						'processed_component_id' => $sProcessedComponentID,
 						'callback_method' => $sOperationCallbackName,
 						'data' => $this->aData,
 					]);
-					throw new Exception($sErrorMessage);
+					throw new ModuleException($sErrorMessage);
 				}
 				break;
 
 			default:
-				$sErrorMessage = ConfigHelper::GetModuleCode().': Operation not supported';
-				IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode(), [
+				$sErrorMessage = 'Operation not supported';
+				IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
 					'operation' => $sOperation,
 					'data' => $this->aData,
 				]);
-				throw new Exception($sErrorMessage);
+				throw new ModuleException($sErrorMessage);
 		}
 
 		// Note: json_encode is not done globally here to allow any operation to return something else than JSON
@@ -166,7 +168,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 			"type" => "item",
 			"id" => "list-linked-tickets",
 			"title" => $sTitle,
-			"image" => $this->GetIconsFolderAbsUrl(static::ENUM_ICONS_PROVIDER_MATERIAL_IO)."link_black_18dp.svg",
+			"image" => IconHelper::GetIconsFolderAbsUrl(IconHelper::ENUM_ICONS_PROVIDER_MATERIAL_IO)."link_black_18dp.svg",
 			"image_width" => static::LIST_ITEM_ICON_WIDTH,
 			"image_height" => static::LIST_ITEM_ICON_HEIGHT,
 			"action" => [
@@ -186,7 +188,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 			"type" => "item",
 			"id" => "list-ongoing-tickets",
 			"title" => $sTitle,
-			"image" => $this->GetIconsFolderAbsUrl(static::ENUM_ICONS_PROVIDER_MATERIAL_IO)."format_list_bulleted_black_18dp.svg",
+			"image" => IconHelper::GetIconsFolderAbsUrl(IconHelper::ENUM_ICONS_PROVIDER_MATERIAL_IO)."format_list_bulleted_black_18dp.svg",
 			"image_width" => static::LIST_ITEM_ICON_WIDTH,
 			"image_height" => static::LIST_ITEM_ICON_HEIGHT,
 			"action" => [
@@ -207,7 +209,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 									"type" => "item",
 									"id" => "create-ticket",
 									"title" => Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:CreateTicket'),
-									"image" => $this->GetIconsFolderAbsUrl(static::ENUM_ICONS_PROVIDER_MATERIAL_IO)."add_black_18dp.svg",
+									"image" => IconHelper::GetIconsFolderAbsUrl(IconHelper::ENUM_ICONS_PROVIDER_MATERIAL_IO)."add_black_18dp.svg",
 									"image_width" => static::LIST_ITEM_ICON_WIDTH,
 									"image_height" => static::LIST_ITEM_ICON_HEIGHT,
 									"action" => [
@@ -218,10 +220,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 								$aListOngoingTicketsComponent,
 							],
 						],
-						[
-							"type" => "spacer",
-							"size" => "m",
-						],
+						ComponentFactory::MakeMediumSpacer(),
 						[
 							"type" => "text",
 							"text" => "*".Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:Hint:Title')."*",
@@ -323,24 +322,10 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 			$oTicket->Set($aTicketAttCodesMapping['intercom_ref'], $oConversationModel->GetIntercomID());
 			$oTicket->DBUpdate();
 
-			$aComponents[] = [
-				"type" => "image",
-				"url" => $this->GetIconsFolderAbsUrl(static::ENUM_ICONS_PROVIDER_ICONS8).'icons8-link.svg',
-				"align" => "center",
-				"width" => static::HEADER_ICON_WIDTH,
-				"height" => static::HEADER_ICON_WIDTH,
-			];
-			$aComponents[] = [
-				"type" => "text",
-				"style" => "header",
-				"align" => "center",
-				"text" => Dict::S('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Success:Title'),
-			];
-			$aComponents[] = [
-				"type" => "text",
-				"style" => "paragraph",
-				"text" => Dict::Format('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Success:Description', $oTicket->GetRawName()),
-			];
+			$aComponents = array_merge($aComponents, AlertComponentsFactory::MakeLinkAlertComponents(
+				Dict::S('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Success:Title'),
+				Dict::Format('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Success:Description', $oTicket->GetRawName())
+			));
 
 			// Send "note" in conversation to trace that ticket has been linked so other admins can see it even though the ticket is linked to another conv in the future
 			$sMessageTitleForHtml = utils::HtmlEntities(Dict::Format('combodo-intercom-integration:SyncApp:TicketLinkedMessage:Title', $oAdminModel->GetFullname()));
@@ -362,34 +347,20 @@ HTML,
 				]
 			);
 		} catch (Exception $oException) {
-			$aComponents[] = [
-				"type" => "image",
-				"url" => $this->GetIconsFolderAbsUrl(static::ENUM_ICONS_PROVIDER_ICONS8).'icons8-error-cloud.svg',
-				"align" => "center",
-				"width" => static::HEADER_ICON_WIDTH,
-				"height" => static::HEADER_ICON_WIDTH,
-			];
-			$aComponents[] = [
-				"type" => "text",
-				"style" => "header",
-				"align" => "center",
-				"text" => Dict::S('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Title'),
-			];
-			$aComponents[] = [
-				"type" => "text",
-				"style" => "paragraph",
-				"text" => Dict::Format('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Description', $oException->getMessage()),
-			];
+			$aComponents = array_merge($aComponents, AlertComponentsFactory::MakeErrorAlertComponents(
+				Dict::S('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Title'),
+				Dict::Format('combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Description', $oException->getMessage())
+			));
 
-			IssueLog::Error('Could not link ticket to conversation', ConfigHelper::GetModuleCode(), [
+			IssueLog::Error('Could not link ticket to conversation', ConfigHelper::GetLogChannel(), [
 				'ticket' => $sTicketClass.'::'.$sTicketID,
 				'conversation_id' => $oConversationModel->GetIntercomID(),
 				'exception_message' => $oException->getMessage(),
 				'exception_stacktrace' => $oException->getTraceAsString(),
 			]);
 		}
-		$aComponents[] = $this->PrepareDividerComponent();
-		$aComponents[] = $this->PrepareBackButtonComponent('home', Dict::S('combodo-intercom-integration:SyncApp:DoneButton:Title'));
+		$aComponents[] = ComponentFactory::MakeDivider();
+		$aComponents[] = ComponentFactory::MakeBackButton('home', Dict::S('combodo-intercom-integration:SyncApp:DoneButton:Title'));
 
 		$aResponse = [
 			"canvas" => [
@@ -407,45 +378,44 @@ HTML,
 	 */
 	protected function Operation_SubmitConversationDetailsFlow_CreateTicketComponent()
 	{
+		$oCreatedTicket = null;
 		$sTicketClass = ConfigHelper::GetModuleSetting('sync_app.ticket.class');
-		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
-		/** @var array<string> $aTicketDetailsAttCodes */
-		$aTicketDetailsAttCodes = ConfigHelper::GetModuleSetting('sync_app.search_ticket.details_attributes');
-		$sTicketDefaultState = MetaModel::GetDefaultState($sTicketClass);
 
-		$aAttCodesToDisplay = [];
-		// Retrieve ticket mandatory editable attributes to add to the form (read-only attributes are skipped)
-		$aAllAttCodes = MetaModel::FlattenZList(MetaModel::GetZListItems($sTicketClass, 'details'));
-		foreach ($aAllAttCodes as $sAttCode) {
-			$oAttDef = MetaModel::GetAttributeDef($sTicketClass, $sAttCode);
-			$iFlags = MetaModel::GetInitialStateAttributeFlags($sTicketClass, $sTicketDefaultState, $sAttCode);
-
-			// TODO
-			// Skip non applicable attribute types
-			if ($oAttDef->IsExternalField() || $oAttDef->IsLinkSet()) {
-				continue;
-			}
-
-			// Skip organization / caller as they will be automatically prefilled
-			if (in_array($sAttCode, [$aTicketAttCodesMapping['org_id'], $aTicketAttCodesMapping['caller_id']])) {
-				continue;
-			}
-
-			// Value is mandatory
-			$bMandatory = ((!$oAttDef->IsNullAllowed()) || ($iFlags & OPT_ATT_MANDATORY));
+		$bSubmittedForm = isset($this->aData['input_values']);
+		if ($bSubmittedForm) {
+			$oCreatedTicket = $this->CreateTicketFromFormValues($sTicketClass, $this->aData['input_values']);
 		}
 
-		//
+		// TODO: Remove after dev
+IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
+	'values' => $this->aData['input_values'],
+]);
+
+		// Display form until valid submission
+		if (is_null($oCreatedTicket)) {
+			$aCanvas = $this->PrepareCreateTicketCanvas($sTicketClass);
+
+			// Form was submitted but ticket was not created, display canvas again with error feedback
+			if ($bSubmittedForm) {
+				// Prepare feedback
+				$aFeedbackComponents = AlertComponentsFactory::MakeErrorAlertComponents(
+					Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Failure:Title'),
+					Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Failure:Description')
+				);
+				$aFeedbackComponents[] = ComponentFactory::MakeMediumSpacer();
+
+				// Prepend feedback to current canvas
+				$aCanvas['content']['components'] = array_merge($aFeedbackComponents, $aCanvas['content']['components']);
+			}
+		}
+		// Show confirmation once creation form is validated
+		else {
+			$aCanvas = $this->PrepareTicketCreationConfirmationCanvas($oCreatedTicket);
+		}
 
 		// Prepare response
 		$aResponse = [
-			"canvas" => [
-				"content" => [
-					"components" => [
-						// TODO
-					],
-				],
-			],
+			"canvas" => $aCanvas,
 		];
 
 		return json_encode($aResponse);
@@ -473,14 +443,14 @@ HTML,
 		$sClientSecret = ConfigHelper::GetModuleSetting('sync_app.client_secret');
 		$sDigest = hash_hmac('sha256', $this->sPayload, $sClientSecret);
 		if ($sDigest !== $this->sSignature) {
-			$sErrorMessage = ConfigHelper::GetModuleCode().': Signature does not match payload and secret key';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode(), [
+			$sErrorMessage = 'Signature does not match payload and secret key';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
 				'signature' => $this->sSignature,
 				'digest (hash_hmac sha1)' => $sDigest,
 				'secret' => $sClientSecret,
 				'payload' => $this->sPayload,
 			]);
-			throw new Exception($sErrorMessage);
+			throw new ModuleException($sErrorMessage);
 		}
 	}
 
@@ -490,35 +460,12 @@ HTML,
 	protected function ReadEventSignature()
 	{
 		if (false === isset($_SERVER['HTTP_X_BODY_SIGNATURE'])) {
-			$sErrorMessage = ConfigHelper::GetModuleCode().': Missing signature in HTTP header';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode());
-			throw new Exception($sErrorMessage);
+			$sErrorMessage = 'Missing signature in HTTP header';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel());
+			throw new ModuleException($sErrorMessage);
 		}
 
 		return $_SERVER['HTTP_X_BODY_SIGNATURE'];
-	}
-
-	/**
-	 * @param string|null $sProvider Specify which specific folder to return {@see static::ENUM_ICONS_PROVIDER_MATERIAL_IO}, {@see static::ENUM_ICONS_PROVIDER_ICONS8}
-	 *
-	 * @return string Absolute URL to the folder of icons used in the Canvas Kit
-	 * @throws \Exception
-	 */
-	protected function GetIconsFolderAbsUrl($sProvider = null)
-	{
-		$sURL = utils::GetAbsoluteUrlModulesRoot().ConfigHelper::GetModuleCode().'/asset/img/';
-
-		switch ($sProvider) {
-			case static::ENUM_ICONS_PROVIDER_MATERIAL_IO:
-				$sURL .= 'material-icons/';
-				break;
-
-			case static::ENUM_ICONS_PROVIDER_ICONS8:
-				$sURL .= 'icons8/';
-				break;
-		}
-
-		return $sURL;
 	}
 
 	/**
@@ -581,106 +528,73 @@ HTML,
 		return $oSet;
 	}
 
-	//-------------------------------
-	// Canvas Kit: Components
-	//-------------------------------
-
-	/**
-	 * @param \DBObjectSet $oSet Set of tickets to display
-	 * @param string       $sType List type {@see static::ENUM_TICKETS_LIST_TYPE_LINKED}, {@see static::ENUM_TICKETS_LIST_TYPE_ONGOING}
-	 *
-	 * @return array Canvas Kit List component for the tickets from $oSet {@link https://developers.intercom.com/canvas-kit-reference/reference/list}
-	 */
-	protected function PrepareTicketsListComponent(DBObjectSet $oSet, $sType)
+	protected function CreateTicketFromFormValues($sTicketClass, $aValues)
 	{
-		$aItems = [];
+		try
+		{
+			// Make object models
+			$oContactModel = Contact::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
-		$sClass = $oSet->GetClass();
-		$sClassAlias = $oSet->GetClassAlias();
-		$aAttCodesToLoad = [];
+			// Prepare default value
+			$aTicketDefaultValues = [];
+			$oCaller = $oContactModel->GetItopContact();
+			/** @var array<string> $aTicketConfiguredAttCodes */
+			$aTicketConfiguredAttCodes = ConfigHelper::GetModuleSetting('sync_app.create_ticket.form_attributes');
 
-		// Check if optional attributes are required
-		$sStateAttCode = MetaModel::GetStateAttributeCode($sClass);
-		$bHasStateAttCode = strlen($sStateAttCode) > 0;
-		if ($bHasStateAttCode) {
-			$aAttCodesToLoad[] = $sStateAttCode;
-		}
+//			if (isset($aTicketConfiguredAttCodes['org_id'])) {
+//				$aTicketDefaultValues[$aTicketConfiguredAttCodes['org_id']] = $oCaller->Get('org_id');
+//			}
+//			if (isset($aTicketConfiguredAttCodes['caller_id'])) {
+//				$aTicketDefaultValues[$aTicketConfiguredAttCodes['caller_id']] = $oCaller->GetKey();
+//			}
 
-		$sSubtitleAttCode = ConfigHelper::GetModuleSetting('sync_app.search_ticket.subtitle_attribute');
-		$bHasSubtitleAttCode = strlen($sSubtitleAttCode) > 0;
-		if ($bHasSubtitleAttCode) {
-			$aAttCodesToLoad[] = $sSubtitleAttCode;
-			$oSubtitleAttDef = MetaModel::GetAttributeDef($sClass, $sSubtitleAttCode);
-		}
+			// Create object
+			$oTicket = MetaModel::NewObject($sTicketClass, $aTicketDefaultValues);
 
-		// Prepare items for the list component
-		$oSet->OptimizeColumnLoad([$sClassAlias => $aAttCodesToLoad]);
-		$sPrefix = constant('static::COMPONENT_ID_VIEW_'.strtoupper($sType).'_TICKET_PREFIX');
-		while ($oTicket = $oSet->Fetch()) {
-			$aItem = [
-				"type" => "item",
-				"id" => $sPrefix."::{$sClass}::{$oTicket->GetKey()}",
-				"title" => $oTicket->GetRawName(),
-				"action" => [
-					"type" => "submit",
-				],
-			];
+			// Apply values to the object
+			foreach ($aValues as $sAttCode => $value)
+			{
+				$oAttDef = MetaModel::GetAttributeDef($sTicketClass, $sAttCode);
+				switch ($oAttDef->GetEditClass()) {
+					case 'Text':
+					case 'HTML':
+						if ($oAttDef->GetFormat() === 'html') {
+							$value = utils::TextToHtml($value);
+						};
+						$oTicket->Set($sAttCode, $value);
+						break;
 
-			// Add optional attributes
-			if ($bHasStateAttCode) {
-				$aItem["subtitle"] = $oTicket->GetStateLabel();
-			}
-			// Note: $sSubtitleAttCode is not in the "subtitle" entry on purpose as we want the state to always be displayed first
-			if ($bHasSubtitleAttCode) {
-				$aItem["tertiary_text"] = $oSubtitleAttDef->GetValueLabel($oTicket->Get($sSubtitleAttCode));
+					case 'ExtKey':
+						// TODO
+						break;
+
+					// Note: Default behavior includes non-supported types, but it's ok as they are not supposed to be submitted. Therefore, we don't guarantee their behavior.
+					default:
+						$oTicket->Set($sAttCode, $value);
+						break;
+				}
 			}
 
-			$aItems[] = $aItem;
+			// Check if object seems consistent before trying to create it to avoid incrementing class ID counter with aborted objects
+			list($bCheckResult, $aCheckIssues) = $oTicket->CheckToWrite();
+			if ($bCheckResult) {
+				$oTicket->DBInsert();
+			} else {
+				$oTicket = null;
+				IssueLog::Error('Ticket could not be created, blocked by CheckToWrite controls', ConfigHelper::GetLogChannel(), [
+					'ticket_class' => $sTicketClass,
+					'check_issues' => $aCheckIssues,
+				]);
+			}
+		} catch (Exception $oException) {
+			$oTicket = null;
+			IssueLog::Error('Ticket could not be created, exception occurred', ConfigHelper::GetLogChannel(), [
+				'ticket_class' => $sTicketClass,
+				'exception_message' => $oException->getMessage(),
+			]);
 		}
 
-		// Assemble final component
-		$aComponent = [
-			"type" => "list",
-			"items" => $aItems,
-		];
-
-		return $aComponent;
-	}
-
-	/**
-	 * @param string $sComponentToGoBackToID
-	 *
-	 * @return array Canvas Kit Button component for go back to the $sComponentToGoBackToID canvas {@link https://developers.intercom.com/canvas-kit-reference/reference/button}
-	 */
-	protected function PrepareBackButtonComponent($sComponentToGoBackToID, $sLabel = null)
-	{
-		if (is_null($sLabel)) {
-			$sLabel = Dict::S('combodo-intercom-integration:SyncApp:BackButton:Title');
-		}
-
-		$aComponent = [
-			"type" => "button",
-			"id" => $sComponentToGoBackToID,
-			"label" => $sLabel,
-			"style" => "link",
-			"action" => [
-				"type" => "submit",
-			],
-		];
-
-		return $aComponent;
-	}
-
-	/**
-	 * @return array Canvas Kit Button component for a divider {@link https://developers.intercom.com/canvas-kit-reference/reference/divider}
-	 */
-	protected function PrepareDividerComponent()
-	{
-		$aComponent = [
-			"type" => "divider",
-		];
-
-		return $aComponent;
+		return $oTicket;
 	}
 
 	//-------------------------------
@@ -695,6 +609,8 @@ HTML,
 	 */
 	protected function PrepareTicketsListCanvas(DBObjectSet $oSet, $sType)
 	{
+		$sListItemPrefix = constant('static::COMPONENT_ID_VIEW_'.strtoupper($sType).'_TICKET_PREFIX');
+
 		$aCanvas = [
 			"content" => [
 				"components" => [
@@ -703,16 +619,10 @@ HTML,
 						"style" => "header",
 						"text" => Dict::S('combodo-intercom-integration:SyncApp:List'.ucfirst($sType).'TicketsCanvas:Title'),
 					],
-					[
-						"type" => "spacer",
-						"size" => "xs",
-					],
-					$this->PrepareTicketsListComponent($oSet, $sType),
-					[
-						"type" => "spacer",
-						"size" => "m",
-					],
-					$this->PrepareBackButtonComponent('home'),
+					ComponentFactory::MakeExtraSmallSpacer(),
+					ComponentFactory::MakeObjectsList($oSet, $sListItemPrefix),
+					ComponentFactory::MakeMediumSpacer(),
+					ComponentFactory::MakeBackButton('home'),
 				],
 			],
 		];
@@ -723,7 +633,7 @@ HTML,
 	/**
 	 * @param string $sReferrerListType List type {@see static::ENUM_TICKETS_LIST_TYPE_LINKED}, {@see static::ENUM_TICKETS_LIST_TYPE_ONGOING}
 	 *
-	 * @return array Canvas Kit Canvas for a list of tickets from $oSet {@link https://developers.intercom.com/canvas-kit-reference/reference/canvas}
+	 * @return array Canvas Kit Canvas for a read-only view of the ticket {@link https://developers.intercom.com/canvas-kit-reference/reference/canvas}
 	 */
 	protected function PrepareViewTicketCanvas($sReferrerListType)
 	{
@@ -755,6 +665,11 @@ HTML,
 					if ($oAttDef->GetFormat() === 'html') {
 						$sAttValueLabel = utils::HtmlToText($sAttValueLabel);
 					};
+					break;
+
+				case $oAttDef instanceof AttributeExternalKey:
+					// Get friendlyname label instead of the raw value (ID)
+					$sAttValueLabel = $oAttDef->GetValueLabel($oTicket->Get($sAttCode.'_friendlyname'));
 					break;
 
 				default:
@@ -798,50 +713,199 @@ HTML,
 				"style" => "muted",
 				"text" => $sSubtitle,
 			],
-			[
-				"type" => "divider",
-				"margin_bottom" => "none",
-			]
+			ComponentFactory::MakeDivider(),
 		];
 
 		// - Buttons
 		$aButtonsComponents = [
-			[
-				"type" => "spacer",
-				"size" => "m",
-			],
+			ComponentFactory::MakeMediumSpacer(),
 		];
 		// - Link to ticket
-		$aButtonsComponents[] = [
-			"type" => "button",
-			"id" => static::COMPONENT_ID_LINK_TICKET_PREFIX."::{$sTicketClass}::{$oTicket->GetKey()}",
-			"label" => Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:LinkTicket'),
-			"style" => "primary",
-			"disabled" => $bTicketAlreadyLinkedToThisConversation,
-			"action" => [
-				"type" => "submit",
-			],
-		];
+		$aButtonsComponents[] = ComponentFactory::MakeSubmitButton(
+			static::COMPONENT_ID_LINK_TICKET_PREFIX."::{$sTicketClass}::{$oTicket->GetKey()}",
+			Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:LinkTicket'),
+			$bTicketAlreadyLinkedToThisConversation
+		);
 		// - Open in iTop backoffice button
 		if (ConfigHelper::GetModuleSetting('sync_app.view_ticket.show_open_in_backoffice_button')) {
-			$aButtonsComponents[] = [
-				"type" => "button",
-				"id" => "open-ticket-in-itop",
-				"label" => Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:OpeniTopBackoffice'),
-				"style" => "secondary",
-				"action" => [
-					"type" => "url",
-					"url" => ApplicationContext::MakeObjectUrl($sTicketClass, $sTicketID),
-				],
-			];
+			$aButtonsComponents[] = ComponentFactory::MakeUrlButton(
+				'open-ticket-in-itop',
+				Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:OpeniTopBackoffice'),
+				ApplicationContext::MakeObjectUrl($sTicketClass, $oTicket->GetKey())
+			);
 		}
 		// - Back button
-		$aButtonsComponents[] = $this->PrepareBackButtonComponent('list-'.$sReferrerListType.'-tickets');
+		$aButtonsComponents[] = ComponentFactory::MakeBackButton('list-'.$sReferrerListType.'-tickets');
 
-		// Prepare response
+		// Prepare canvas
 		$aCanvas = [
 			"content" => [
 				"components" => array_merge($aHeaderComponents, $aAttComponents, $aButtonsComponents),
+			],
+		];
+
+		return $aCanvas;
+	}
+
+	/**
+	 * @param string $sTicketClass Valid class of the DM for which the form wil be displayed
+	 *
+	 * @return array Canvas Kit Canvas for a ticket creation form {@link https://developers.intercom.com/canvas-kit-reference/reference/canvas}
+	 */
+	protected function PrepareCreateTicketCanvas($sTicketClass)
+	{
+		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
+		/** @var array<string> $aTicketConfiguredAttCodes */
+		$aTicketConfiguredAttCodes = ConfigHelper::GetModuleSetting('sync_app.create_ticket.form_attributes');
+		$sTicketDefaultState = MetaModel::GetDefaultState($sTicketClass);
+
+		// Mock ticket to apply form values and trigger dependant fields
+		$aMockValues = array_merge(
+			is_null($this->aData['input_values']) ? [] : $this->aData['input_values'],
+			['org_id' => 3, 'caller_id' => 6]
+		);
+		$oMockTicket = MetaModel::NewObject($sTicketClass, $aMockValues);
+
+		$aAttComponents = [];
+		// Retrieve ticket attributes to add to the form: either mandatory or requested via the configuration (read-only attributes are skipped)
+		$aTicketAllAttCodes = MetaModel::FlattenZList(MetaModel::GetZListItems($sTicketClass, 'details'));
+		foreach ($aTicketAllAttCodes as $sAttCode) {
+			$oAttDef = MetaModel::GetAttributeDef($sTicketClass, $sAttCode);
+			$iFlags = MetaModel::GetInitialStateAttributeFlags($sTicketClass, $sTicketDefaultState, $sAttCode);
+
+			// Skip non-applicable attribute types
+			if ((false === $oAttDef->IsWritable()) || $oAttDef->IsMagic() || $oAttDef->IsExternalField() || $oAttDef->IsLinkSet()) {
+				IssueLog::Debug('Attribute skipped from creation form as it is not applicable', ConfigHelper::GetLogChannel(), [
+					'ticket_class' => $sTicketClass,
+					'attcode' => $sAttCode,
+				]);
+				continue;
+			}
+
+			// Value is mandatory
+			$bMandatory = ((!$oAttDef->IsNullAllowed()) || ($iFlags & OPT_ATT_MANDATORY));
+
+			// Skip attributes not explicitly requested unless they must be filled
+			if (!in_array($sAttCode, $aTicketConfiguredAttCodes)) {
+				// Not mandatory, skip it
+				if (false === $bMandatory) {
+					continue;
+				}
+				// Mandatory but already has a value, skip it
+				if (strlen($oMockTicket->Get($sAttCode)) > 0) {
+					continue;
+				}
+			}
+
+			// Prepare label
+			$sLabel = MetaModel::GetLabel($sTicketClass, $sAttCode);
+			if ($bMandatory) {
+				$sLabel .= ' *';
+			}
+
+			// Prepare default value
+			$sDefaultValue = isset($aMockValues[$sAttCode]) && (strlen($aMockValues[$sAttCode]) > 0) ? $aMockValues[$sAttCode] : $oAttDef->GetDefaultValue($oMockTicket);
+
+			$aAttributeComponent = [];
+			switch ($oAttDef->GetEditClass()) {
+				case 'String':
+				case 'Integer':
+					$aAllowedValues = $oAttDef->GetAllowedValues(['this' => $oMockTicket] /* No args as the ticket is being created */);
+					// Simple "string" attributes
+					if (is_null($aAllowedValues)) {
+						$aAttributeComponent = ComponentFactory::MakeStringField($sAttCode, $sLabel, $sDefaultValue, null);
+					}
+					// Enums and such
+					else {
+						$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sAttCode, $aAllowedValues, $sLabel, $sDefaultValue, true);
+					}
+					break;
+
+				case 'Text':
+				case 'HTML':
+					// TODO: Handle HTML properly (in and out)
+					$aAttributeComponent = ComponentFactory::MakeTextareaField($sAttCode, $sLabel, $sDefaultValue, null);
+					break;
+
+				case 'ExtKey':
+					// Note: Decode HTML entities as AttributeDefinition::GetAllowedValues() gives them encoded 😥
+					$aAllowedValues = array_map(function($sValue){
+						return utils::HtmlEntityDecode($sValue);
+					}, $oAttDef->GetAllowedValues(['this' => $oMockTicket]));
+
+					$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sAttCode, $aAllowedValues, $sLabel, $sDefaultValue, true);
+					break;
+
+				// No date(time) input in the Intercom framework. We can imagine using a regular text input with the expected format in the placeholder but it's not great.
+				case 'Date':
+				case 'DateTime':
+				// Default = Not supported yet (Document, Image, Duration, CaseLog, CustomFields, LinkedSet, Dashboard -""-, Friendlyname -""-, ExtField...)
+				default:
+					continue 2;
+			}
+
+			if (empty($aAttributeComponent)) {
+				$sAttDefClass = get_class($oAttDef);
+				$aAttributeComponent = [
+					"type" => "text",
+					"id" => $sAttCode,
+					"style" => "error",
+					"text" => Dict::S('Core:'.$sAttDefClass)."  attribute ($sAttCode) not supported by the Intercom API",
+				];
+			}
+
+			$aAttComponents[] = $aAttributeComponent;
+		}
+
+		// Header components
+		$aHeaderComponents = [
+			[
+				"type" => "text",
+				"style" => "header",
+				"text" => Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Title'),
+			],
+			[
+				"type" => "text",
+				"style" => "muted",
+				"text" => Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Subtitle'),
+			],
+			ComponentFactory::MakeDivider(),
+		];
+
+		// Button components
+		$aButtonsComponents = [
+			ComponentFactory::MakeMediumSpacer(),
+			ComponentFactory::MakeSubmitButton('create-ticket', Dict::S('combodo-intercom-integration:SyncApp:CreateButton:Title')),
+			ComponentFactory::MakeBackButton('home'),
+		];
+
+		// Prepare canvas
+		$aCanvas = [
+			"content" => [
+				"components" => array_merge($aHeaderComponents, $aAttComponents, $aButtonsComponents),
+			],
+		];
+
+		return $aCanvas;
+	}
+
+	/**
+	 * @param \DBObject $oTicket Ticket that has just been created
+	 *
+	 * @return array Canvas Kit Canvas for a confirmation message {@link https://developers.intercom.com/canvas-kit-reference/reference/canvas}
+	 * @throws \CoreException
+	 */
+	protected function PrepareTicketCreationConfirmationCanvas(DBObject $oTicket)
+	{
+		$aComponents = AlertComponentsFactory::MakeSuccessAlertComponents(
+			Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Title'),
+			Dict::Format('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Description', $oTicket->GetRawName())
+		);
+
+		// Prepare canvas
+		$aCanvas = [
+			"content" => [
+				"components" => $aComponents,
 			],
 		];
 

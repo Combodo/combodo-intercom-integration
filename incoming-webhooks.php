@@ -6,13 +6,12 @@
  */
 
 /**
- * Endpoint to process canvas kit calls from Intercom to display the sync. app. GUI within the chat dashboard
+ * Endpoint to process webhook calls from Intercom to update a ticket from the chat conversation
  *
- * @link https://developers.intercom.com/building-apps/docs/canvas-kit
+ * @link https://developers.intercom.com/building-apps/docs/webhooks
  */
 
-use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
-use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingCanvasKitsHandler;
+use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingWebhooksHandler;
 
 $sAppRootFilePath = 'approot.inc.php';
 // Depending on where the module is executed (env-xxx, datamodels with symlinks, extensions with symlinks, ...), approot file path can be different. So we try to find it.
@@ -29,13 +28,10 @@ require_once APPROOT.'/application/startup.inc.php';
 
 // Processing
 try {
-	$oWebhooksHandler = new IncomingCanvasKitsHandler();
+	$oWebhooksHandler = new IncomingWebhooksHandler();
 	$sResponse = $oWebhooksHandler->HandleOperation();
 
-	IssueLog::Debug('Tip: When debugging Canvas Kit response, if it does not display on Intercom even though the JSON seems valid, paste it in the Canvas Kit Builder (https://app.intercom.com/a/canvas-kit-builder) as the error might not be in the JSON   syntax but in the components specs.', ConfigHelper::GetLogChannel());
-	IssueLog::Debug('Canvas Kit response', ConfigHelper::GetLogChannel(), [
-		'response' => $sResponse,
-	]);
+	IssueLog::Debug($sResponse, ConfigHelper::GetLogChannel());
 	echo $sResponse;
 } catch (Exception $oException) {
 	IssueLog::Error($oException->getMessage(), ConfigHelper::GetLogChannel(), [

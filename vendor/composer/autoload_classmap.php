@@ -6,11 +6,16 @@ $vendorDir = dirname(dirname(__FILE__));
 $baseDir = dirname($vendorDir);
 
 return array(
+    'Combodo\\iTop\\Extension\\IntercomIntegration\\Exception\\ModuleException' => $baseDir . '/src/Exception/ModuleException.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\ConfigHelper' => $baseDir . '/src/Helper/ConfigHelper.php',
+    'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\IconHelper' => $baseDir . '/src/Helper/IconHelper.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Admin' => $baseDir . '/src/Model/Intercom/Admin.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Contact' => $baseDir . '/src/Model/Intercom/Contact.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Conversation' => $baseDir . '/src/Model/Intercom/Conversation.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\AbstractIncomingEventsHandler' => $baseDir . '/src/Service/API/Inbound/AbstractIncomingEventsHandler.php',
+    'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\CanvasKit\\AlertComponentsFactory' => $baseDir . '/src/Service/API/Inbound/CanvasKit/AlertComponentsFactory.php',
+    'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\CanvasKit\\ComponentFactory' => $baseDir . '/src/Service/API/Inbound/CanvasKit/ComponentFactory.php',
+    'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\CanvasKit\\InteractiveComponentSaveStates' => $baseDir . '/src/Service/API/Inbound/CanvasKit/InteractiveComponentSaveStates.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\IncomingCanvasKitsHandler' => $baseDir . '/src/Service/API/Inbound/IncomingCanvasKitsHandler.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Inbound\\IncomingWebhooksHandler' => $baseDir . '/src/Service/API/Inbound/IncomingWebhooksHandler.php',
     'Combodo\\iTop\\Extension\\IntercomIntegration\\Service\\API\\Outbound\\ApiRequestSender' => $baseDir . '/src/Service/API/Outbound/ApiRequestSender.php',

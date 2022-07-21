@@ -86,6 +86,16 @@ class ConfigHelper
 	}
 
 	/**
+	 * @return string The log channel to use for log messages of this module
+	 * @since 1.1.0
+	 */
+	public static function GetLogChannel()
+	{
+		// For now the log channel is the module code, maybe we will find a better convention one day.
+		return static::MODULE_CODE;
+	}
+
+	/**
 	 * Return the JS snippet for the widget
 	 *
 	 * @return string

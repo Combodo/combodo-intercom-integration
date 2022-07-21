@@ -9,6 +9,7 @@
 namespace Combodo\iTop\Extension\IntercomIntegration\Model\Intercom;
 
 
+use Combodo\iTop\Extension\IntercomIntegration\Exception\ModuleException;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
 use Exception;
 use IssueLog;
@@ -50,9 +51,11 @@ class Contact
 	public static function FromCanvasKitInitializeConversationDetailsData($aData)
 	{
 		if (false === isset($aData['contact'])) {
-			$sErrorMessage = ConfigHelper::GetModuleCode().': Could not create contact model from Canvas Kit initialize Conversation Details as there is no "contact" entry in the data';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode());
-			throw new Exception($sErrorMessage);
+			$sErrorMessage = 'Could not create contact model from Canvas Kit initialize Conversation Details as there is no "contact" entry in the data';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
+				'data' => $aData,
+			]);
+			throw new ModuleException($sErrorMessage);
 		}
 
 		return new static($aData['contact']);
@@ -136,8 +139,8 @@ class Contact
 			try {
 				$this->oItopContact = MetaModel::GetObject($this->GetItopClass(), $this->GetItopID(), true, true);
 			} catch (Exception $oException) {
-				$sErrorMessage = ConfigHelper::GetModuleCode().': Contact object does not exists';
-				IssueLog::Error($sErrorMessage, ConfigHelper::GetModuleCode(), [
+				$sErrorMessage = 'Unable to retrieve contact object from the Canvas Kit contact model as the object does not exist';
+				IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
 					'intercom_id' => $this->GetIntercomID(),
 					'workspace_id' => $this->GetWorkspaceID(),
 					'fullname' => $this->GetFullname(),

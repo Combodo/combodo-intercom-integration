@@ -17,6 +17,7 @@ Dict::Add('EN US', 'English', 'English', array(
 	'combodo-intercom-integration:SyncApp:HomeButton:Title' => 'Home',
 	'combodo-intercom-integration:SyncApp:BackButton:Title' => 'Back',
 	'combodo-intercom-integration:SyncApp:DoneButton:Title' => 'Done',
+	'combodo-intercom-integration:SyncApp:CreateButton:Title' => 'Create',
 	'combodo-intercom-integration:SyncApp:HomeCanvas:CreateTicket' => 'Create a new ticket',
 	'combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTickets:NoTicket' => 'No ticket linked to this conversation yet',
 	'combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTickets:SomeTickets' => '%1$d ticket(s) linked to this conversation',
@@ -35,6 +36,12 @@ Dict::Add('EN US', 'English', 'English', array(
 	'combodo-intercom-integration:SyncApp:LinkTicketCanvas:Success:Description' => '%1$s has been linked to this conversation',
 	'combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Title' => 'Error',
 	'combodo-intercom-integration:SyncApp:LinkTicketCanvas:Failure:Description' => 'Ticket could not be linked to this conversation due to the following error: %1$s',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Title' => 'Create a new ticket',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Subtitle' => 'Mandatory attributes have an *',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Title' => 'Ticket created',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Description' => '%1$s has been created and linked to this conversation',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Failure:Title' => 'Error',
+	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Failure:Description' => 'Ticket could not be created, check that all mandatory fields are filled. If the issue remains, contact your '.ITOP_APPLICATION_SHORT.' administrator',
 ));
 
 // - Sync app: Messenger
