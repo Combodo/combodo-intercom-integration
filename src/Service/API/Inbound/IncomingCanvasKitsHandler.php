@@ -20,6 +20,7 @@ use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit\Ale
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit\ComponentFactory;
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Outbound\ApiRequestSender;
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Outbound\ApiUrlGenerator;
+use DateTime;
 use DBObject;
 use DBObjectSearch;
 use DBObjectSet;
@@ -27,6 +28,7 @@ use Dict;
 use Exception;
 use IssueLog;
 use MetaModel;
+use ormCaseLog;
 use utils;
 
 /**
@@ -65,6 +67,8 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	const COMPONENT_ID_VIEW_ONGOING_TICKET_PREFIX = 'view-ongoing-ticket';
 	/** @var string Prefix of "component_id" for IDs that aim at linking a specific ticket (class/ID will be append) */
 	const COMPONENT_ID_LINK_TICKET_PREFIX = 'link-ticket';
+	/** @var string Prefix of "component_id" for IDs that aim at creating a ticket (update form on field value selection) */
+	const COMPONENT_ID_CREATE_TICKET = 'create-ticket';
 	/** @var int Width in pixels of an icon displayed as decoration in a list item */
 	const LIST_ITEM_ICON_WIDTH = 18;
 	/** @var int Height in pixels of an icon displayed as decoration in a list item */
@@ -103,12 +107,13 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 				$sComponentID = $this->aData['component_id'];
 				$sProcessedComponentID = $sComponentID;
 
-				// Special case for viewing / linking a ticket as the class/ID will be part of the "component_id"
+				// Special case for creating / viewing / linking a ticket as the class/ID will be part of the "component_id"
 				// As we cannot pass context data through canvases, we have to pass that context as a suffix of the components IDs
 				$aSpecialCasesPrefixes = [
 					static::COMPONENT_ID_VIEW_LINKED_TICKET_PREFIX,
 					static::COMPONENT_ID_VIEW_ONGOING_TICKET_PREFIX,
-					static::COMPONENT_ID_LINK_TICKET_PREFIX
+					static::COMPONENT_ID_LINK_TICKET_PREFIX,
+					static::COMPONENT_ID_CREATE_TICKET,
 				];
 				foreach ($aSpecialCasesPrefixes as $sSpecialCasePrefix) {
 					if (strpos($sProcessedComponentID, $sSpecialCasePrefix) === 0) {
@@ -144,6 +149,43 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 		return $this->$sOperationCallbackName();
 	}
 
+	/**
+	 * Signature is verified via SHA256 algorithm
+	 * @inheritDoc
+	 */
+	protected function CheckAccess()
+	{
+		parent::CheckAccess();
+
+		// Verify client secret
+		$sClientSecret = ConfigHelper::GetModuleSetting('sync_app.client_secret');
+		$sDigest = hash_hmac('sha256', $this->sPayload, $sClientSecret);
+		if ($sDigest !== $this->sSignature) {
+			$sErrorMessage = 'Signature does not match payload and secret key';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
+				'signature' => $this->sSignature,
+				'digest (hash_hmac sha1)' => $sDigest,
+				'secret' => $sClientSecret,
+				'payload' => $this->sPayload,
+			]);
+			throw new ModuleException($sErrorMessage);
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	protected function ReadEventSignature()
+	{
+		if (false === isset($_SERVER['HTTP_X_BODY_SIGNATURE'])) {
+			$sErrorMessage = 'Missing signature in HTTP header';
+			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel());
+			throw new ModuleException($sErrorMessage);
+		}
+
+		return $_SERVER['HTTP_X_BODY_SIGNATURE'];
+	}
+
 	//-------------------------------
 	// Conversation details methods
 	//-------------------------------
@@ -153,7 +195,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	 */
 	protected function Operation_InitializeConversationDetailsFlow()
 	{
-		// Make object models
+		// Make Intercom object models
 		$oContactModel = Contact::FromCanvasKitInitializeConversationDetailsData($this->aData);
 		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
@@ -254,7 +296,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	 */
 	protected function Operation_SubmitConversationDetailsFlow_ListLinkedTicketsComponent()
 	{
-		// Make object models
+		// Make Intercom object models
 		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
 		$aResponse = [
@@ -269,7 +311,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	 */
 	protected function Operation_SubmitConversationDetailsFlow_ListOnGoingTicketsComponent()
 	{
-		// Make object models
+		// Make Intercom object models
 		$oContactModel = Contact::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
 		$aResponse = [
@@ -308,7 +350,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 	 */
 	protected function Operation_SubmitConversationDetailsFlow_LinkTicketComponent()
 	{
-		// Make object models
+		// Make Intercom object models
 		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
 		$oAdminModel = Admin::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
@@ -378,18 +420,23 @@ HTML,
 	 */
 	protected function Operation_SubmitConversationDetailsFlow_CreateTicketComponent()
 	{
+		// Make Intercom object models
+		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
+		$oAdminModel = Admin::FromCanvasKitInitializeConversationDetailsData($this->aData);
+
 		$oCreatedTicket = null;
 		$sTicketClass = ConfigHelper::GetModuleSetting('sync_app.ticket.class');
 
-		$bSubmittedForm = isset($this->aData['input_values']);
+		$bSubmittedForm = $this->aData['component_id'] === 'create-ticket-submit';
 		if ($bSubmittedForm) {
-			$oCreatedTicket = $this->CreateTicketFromFormValues($sTicketClass, $this->aData['input_values']);
+			// Decode values
+			$aValues = [];
+			foreach ($this->aData['input_values'] as $sComponentID => $sComponentValue) {
+				$aValues[static::DecodeAttCodeFromInputComponentID($sComponentID)] = static::DecodeAttValueFromInputComponentValue($sComponentID, $sComponentValue);
+			}
+			// Create ticket
+			$oCreatedTicket = $this->CreateTicketFromFormValues($sTicketClass, $aValues);
 		}
-
-		// TODO: Remove after dev
-IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
-	'values' => $this->aData['input_values'],
-]);
 
 		// Display form until valid submission
 		if (is_null($oCreatedTicket)) {
@@ -411,6 +458,26 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 		// Show confirmation once creation form is validated
 		else {
 			$aCanvas = $this->PrepareTicketCreationConfirmationCanvas($oCreatedTicket);
+
+			// Send "note" in conversation to trace that ticket has been linked so other admins can see it even though the ticket is linked to another conv in the future
+			$sMessageTitleForHtml = utils::HtmlEntities(Dict::S('combodo-intercom-integration:SyncApp:TicketCreatedMessage:Title'));
+			$sTicketPortalUrl = ApplicationContext::MakeObjectUrl($sTicketClass, $oCreatedTicket->GetKey(), ConfigHelper::GetModuleSetting('sync_app.portal_url_maker_class'));
+			ApiRequestSender::Send(
+				ApiUrlGenerator::ForConversationReply($oConversationModel->GetIntercomID()),
+				[
+					"message_type" => "comment",
+					"type" => "admin",
+					"admin_id" => $oAdminModel->GetIntercomID(),
+					"body" => <<<HTML
+<html>
+<body>
+	<p>🔗 {$sMessageTitleForHtml}</p>
+	<p><a href="{$sTicketPortalUrl}" target="_blank">{$oCreatedTicket->GetName()}</a></p>
+</body>
+</html>
+HTML,
+				]
+			);
 		}
 
 		// Prepare response
@@ -421,51 +488,61 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 		return json_encode($aResponse);
 	}
 
+	/**
+	 * @return false|string The JSON encoded response of a Canvas Kit representing the ticket creation form in the "conversation details"
+	 */
+	protected function Operation_SubmitConversationDetailsFlow_CreateTicketSubmitComponent()
+	{
+		// This is an indirection to avoid duplicating as we want the same checks to be performed on form refresh or submission
+		return $this->Operation_SubmitConversationDetailsFlow_CreateTicketComponent();
+	}
+
 	//-------------------------------
 	// Helper methods
 	//-------------------------------
 
 	/**
-	 * Signature
-	 * is
-	 * verified
-	 * via
-	 * SHA256
-	 * algorithm
+	 * Used to encode the att. code into a unique input component ID
+	 * @param string $sAttCode
 	 *
-	 * @inheritDoc
+	 * @return string Encoded component ID for $sAttCode (eg. "service_id" becomes "create-ticket::service_id")
 	 */
-	protected function CheckAccess()
+	public static function EncodeAttCodeToInputComponentID($sAttCode)
 	{
-		parent::CheckAccess();
-
-		// Verify client secret
-		$sClientSecret = ConfigHelper::GetModuleSetting('sync_app.client_secret');
-		$sDigest = hash_hmac('sha256', $this->sPayload, $sClientSecret);
-		if ($sDigest !== $this->sSignature) {
-			$sErrorMessage = 'Signature does not match payload and secret key';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
-				'signature' => $this->sSignature,
-				'digest (hash_hmac sha1)' => $sDigest,
-				'secret' => $sClientSecret,
-				'payload' => $this->sPayload,
-			]);
-			throw new ModuleException($sErrorMessage);
-		}
+		return static::COMPONENT_ID_CREATE_TICKET.'::'.$sAttCode;
 	}
 
 	/**
-	 * @inheritDoc
+	 * Used to decode the submitted att. code corresponding to the input component
+	 *
+	 * @param string $sComponentID Intercom ID of the input component (eg. "create-tickete::title", "create-ticket::service_id", ...)
+	 *
+	 * @return false|string Decoded att. code of the $sComponentID (eg. "create-ticket::service_id" becomes "service_id")
 	 */
-	protected function ReadEventSignature()
+	public static function DecodeAttCodeFromInputComponentID($sComponentID)
 	{
-		if (false === isset($_SERVER['HTTP_X_BODY_SIGNATURE'])) {
-			$sErrorMessage = 'Missing signature in HTTP header';
-			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel());
-			throw new ModuleException($sErrorMessage);
+		return substr($sComponentID, strlen(static::COMPONENT_ID_CREATE_TICKET.'::'));
+	}
+
+	/**
+	 * Used to decode the value of a submitted input component
+	 *
+	 * @param string $sComponentID Intercom ID of the input component (eg. "create-ticket::title", "create-ticket::service_id", ...)
+	 * @param string $sComponentValue Raw value of the input component, might be prefixed with $sComponentID depending on the component type (eg. "Some text" for a simple input component, "create-ticket::service_id::3" for a list input component)
+	 *
+	 * @return false|string Decoded $sComponentValue value of the $sComponentID (eg. "create-ticket::service_id::3" becomes "3")
+	 */
+	public static function DecodeAttValueFromInputComponentValue($sComponentID, $sComponentValue)
+	{
+		$sPrefix = $sComponentID.'::';
+
+		// List input component (dropdown, enums, ...)
+		if (stripos($sComponentValue, $sPrefix) === 0) {
+			return substr($sComponentValue, strlen($sPrefix));
 		}
 
-		return $_SERVER['HTTP_X_BODY_SIGNATURE'];
+		// Simple input component (string, textarea, ...)
+		return $sComponentValue;
 	}
 
 	/**
@@ -484,14 +561,63 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 	}
 
 	/**
+	 * @param string $sEmail Email of the Contact object to find
+	 *
+	 * @return \DBObject|null The first *non* obsolete Contact object with $sEmail
+	 * @throws \CoreException
+	 * @throws \CoreUnexpectedValue
+	 * @throws \MySQLException
+	 * @throws \OQLException
+	 */
+	protected function GetItopContactFromEmail($sEmail)
+	{
+		// Search for first corresponding contact
+		$oSearch = DBObjectSearch::FromOQL('SELECT Person WHERE email = :email');
+		$oSearch->SetShowObsoleteData(false);
+
+		$oSet = new DBObjectSet($oSearch, [], ['email' => $sEmail]);
+		$oSet->SetLimit(1);
+
+		$oContact = $oSet->Fetch();
+		if (is_null($oContact)) {
+			IssueLog::Debug('Unable to retrieve contact object from email', ConfigHelper::GetLogChannel(), [
+				'email' => $sEmail,
+			]);
+			return null;
+		}
+
+		return $oContact;
+	}
+
+	protected function GetItopUserFromItopContact($oContact)
+	{
+		if (is_null($oContact)) {
+			IssueLog::Debug('Unable to retrieve user object, no contact passed', ConfigHelper::GetLogChannel());
+			return null;
+		}
+
+		// Search for first corresponding user
+		$oSearch = DBObjectSearch::FromOQL('SELECT User WHERE email = :email');
+		$oSearch->SetShowObsoleteData(false);
+
+		$oSet = new DBObjectSet($oSearch, [], ['email' => $oContact->Get('email')]);
+		$oSet->SetLimit(1);
+
+		$oUser = $oSet->Fetch();
+		if (is_null($oUser)) {
+			IssueLog::Debug('Unable to retrieve user object from contact object', ConfigHelper::GetLogChannel(), [
+				'contact' => $oContact,
+			]);
+			return null;
+		}
+
+		return $oUser;
+	}
+
+	/**
 	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Conversation $oConversationModel
 	 *
-	 * @return \DBObjectSet Set
-	 *                      of
-	 *                      tickets
-	 *                      linked
-	 *                      to
-	 *                      $oConversationModel
+	 * @return \DBObjectSet Set of tickets linked to $oConversationModel
 	 */
 	protected function GetLinkedTicketsSet(Conversation $oConversationModel)
 	{
@@ -508,45 +634,70 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 	/**
 	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Contact $oContactModel
 	 *
-	 * @return \DBObjectSet Set
-	 *                      of
-	 *                      ongoing
-	 *                      tickets
-	 *                      for
-	 *                      $oContactModel
+	 * @return \DBObjectSet Set of ongoing tickets for $oContactModel
 	 */
 	protected function GetOngoingTicketsSet(Contact $oContactModel)
 	{
 		$sTicketClass = ConfigHelper::GetModuleSetting('sync_app.ticket.class');
 		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
-		$aTicketDoneStates = ConfigHelper::GetModuleSetting('sync_app.search_ticket.done_states');
+		$aTicketExcludedStates = ConfigHelper::GetModuleSetting('sync_app.search_ticket.excluded_states');
 
 		$oSearch = DBObjectSearch::FromOQL("SELECT $sTicketClass WHERE {$aTicketAttCodesMapping['caller_id']} = :caller_id AND {$aTicketAttCodesMapping['status']} NOT IN (:states)");
 		$oSearch->AllowAllData(true);
-		$oSet = new DBObjectSet($oSearch, [], ['caller_id' => $oContactModel->GetItopContact()->GetKey(), 'states' => $aTicketDoneStates]);
+		$oSet = new DBObjectSet($oSearch, [], ['caller_id' => $oContactModel->GetItopContact()->GetKey(), 'states' => $aTicketExcludedStates]);
 
 		return $oSet;
 	}
 
+	/**
+	 * @param string $sTicketClass
+	 * @param array $aValues [att. code => value, ...]
+	 *
+	 * @return \cmdbAbstractObject|null The created ticket or null if it couldn't be created
+	 */
 	protected function CreateTicketFromFormValues($sTicketClass, $aValues)
 	{
 		try
 		{
-			// Make object models
+			// Make Intercom object models
 			$oContactModel = Contact::FromCanvasKitInitializeConversationDetailsData($this->aData);
+			$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
+			$oAdminModel = Admin::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
 			// Prepare default value
 			$aTicketDefaultValues = [];
 			$oCaller = $oContactModel->GetItopContact();
-			/** @var array<string> $aTicketConfiguredAttCodes */
-			$aTicketConfiguredAttCodes = ConfigHelper::GetModuleSetting('sync_app.create_ticket.form_attributes');
+			/** @var array<string> $aTicketAttCodesMapping */
+			$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
+			// - Organization
+			$sTicketOrgIDAttCode = 'org_id';
+			if (isset($aTicketAttCodesMapping['org_id'])) {
+				$sTicketOrgIDAttCode = $aTicketAttCodesMapping['org_id'];
+			}
+			$aTicketDefaultValues[$sTicketOrgIDAttCode] = $oCaller->Get('org_id');
+			// - Caller
+			$sTicketCallerIDAttCode = 'caller_id';
+			if (isset($aTicketAttCodesMapping['caller_id'])) {
+				$sTicketCallerIDAttCode = $aTicketAttCodesMapping['caller_id'];
+			}
+			$aTicketDefaultValues[$sTicketCallerIDAttCode] = $oCaller->GetKey();
+			// - Intercom ref.
+			$sTicketIntercomRefAttCode = 'intercom_ref';
+			if (isset($aTicketAttCodesMapping['intercom_ref'])) {
+				$sTicketIntercomRefAttCode = $aTicketAttCodesMapping['intercom_ref'];
+			}
+			$aTicketDefaultValues[$sTicketIntercomRefAttCode] = $oConversationModel->GetIntercomID();
 
-//			if (isset($aTicketConfiguredAttCodes['org_id'])) {
-//				$aTicketDefaultValues[$aTicketConfiguredAttCodes['org_id']] = $oCaller->Get('org_id');
-//			}
-//			if (isset($aTicketConfiguredAttCodes['caller_id'])) {
-//				$aTicketDefaultValues[$aTicketConfiguredAttCodes['caller_id']] = $oCaller->GetKey();
-//			}
+			// - Public log
+			$sTicketPublicLogAttCode = 'public_log';
+			if (isset($aTicketAttCodesMapping['public_log'])) {
+				$sTicketPublicLogAttCode = $aTicketAttCodesMapping['public_log'];
+			}
+			// - Private log
+			$sTicketPrivateLogAttCode = 'private_log';
+			if (isset($aTicketAttCodesMapping['private_log'])) {
+				$sTicketPrivateLogAttCode = $aTicketAttCodesMapping['private_log'];
+			}
 
 			// Create object
 			$oTicket = MetaModel::NewObject($sTicketClass, $aTicketDefaultValues);
@@ -564,10 +715,6 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 						$oTicket->Set($sAttCode, $value);
 						break;
 
-					case 'ExtKey':
-						// TODO
-						break;
-
 					// Note: Default behavior includes non-supported types, but it's ok as they are not supposed to be submitted. Therefore, we don't guarantee their behavior.
 					default:
 						$oTicket->Set($sAttCode, $value);
@@ -578,7 +725,91 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 			// Check if object seems consistent before trying to create it to avoid incrementing class ID counter with aborted objects
 			list($bCheckResult, $aCheckIssues) = $oTicket->CheckToWrite();
 			if ($bCheckResult) {
+				// TODO: When extension min. iTop version will be 2.7.2, change this to follow the new API
+				// - Reset the current change $oTicket::SetCurrentChange(null);
+				// - Change the desired info $oTicket::SetTrackInfo('Created from Intercom'); $oTicket::SetTrackOrigin('custom-extension');
+				/** @var \CMDBChange $oChange */
+				$oChange = MetaModel::NewObject('CMDBChange');
+				$oChange->Set('date', time());
+				$oChange->Set('origin', 'custom-extension');
+				$oChange->Set('userinfo', 'Intercom chat integration');
+				$oChange->DBInsert();
+
+				$oTicket::SetCurrentChange($oChange);
 				$oTicket->DBInsert();
+
+				// Then copy conversation in logs
+				// Note: In the following we have to use the \ormCaseLog::AddLogEntryFromJSON() method in order to define the correct user of the entry
+				// that is why we encode/decode entries in JSON. Otherwise entries would all be marked are from the current user.
+// TODO: Authenticate as an Admin user with the token thing
+\UserRights::Login('admin');
+				$oPublicLog = new ormCaseLog();
+				$oPrivateLog = new ormCaseLog();
+
+				// - First manage the "source", which is the message that created the conversation
+				// @link https://developers.intercom.com/intercom-api-reference/reference/conversation-model#source-object
+				$aConvSource = $oConversationModel->GetSourcePart();
+				$sConvSourceAuthorType = $aConvSource['author']['type'];
+				// - Conversation can be initiated either from the user or an admin (Intercom agent)
+				if ($sConvSourceAuthorType === 'user'){
+					$oConvSourceContact = $oContactModel->GetItopContact();
+				} else {
+					$oConvSourceContact = $this->GetItopContactFromEmail($aConvSource['author']['email']);
+				}
+				$oConvSourceUser = $this->GetItopUserFromItopContact($oConvSourceContact);
+				$aLogEntryAsArray = [
+					'user_id' => is_null($oConvSourceUser) ? 0 : $oConvSourceUser->GetKey(),
+					'user_login' => is_null($oConvSourceUser) ? Dict::Format('combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin', $aConvSource['author']['name']) : $oConvSourceUser->Get('login'),
+					'date' => '@' . $oConversationModel->GetStartDateTime()->format('U'),
+					'message' => $aConvSource['body'],
+				];
+				$sLogEntryAsJsonObject = json_decode(json_encode($aLogEntryAsArray));
+				$oPublicLog->AddLogEntryFromJSON($sLogEntryAsJsonObject, false);
+
+				// - Then manage the "parts"
+				// @link https://developers.intercom.com/intercom-api-reference/reference/conversation-model#conversation-part-object
+				foreach ($oConversationModel->GetConversationParts() as $aConvPart) {
+					// Skip bot messages
+					if ($aConvPart['author']['type'] === 'bot') {
+						continue;
+					}
+
+					// Prepare target log and skip unnecessary parts
+					switch ($aConvPart['part_type']) {
+						case 'comment':
+						case 'assignment':
+							$sTargetLogAttCode = $sTicketPublicLogAttCode;
+							$sTargetLogVarName = 'oPublicLog';
+							break;
+
+						case 'note':
+						case 'note_and_reopen':
+							$sTargetLogAttCode = $sTicketPrivateLogAttCode;
+							$sTargetLogVarName = 'oPrivateLog';
+							break;
+
+						default:
+							// Skip conv. part
+							continue 2;
+							break;
+					}
+
+					$oConvPartContact = $this->GetItopContactFromEmail($aConvPart['author']['email']);
+					$oConvPartUser = $this->GetItopUserFromItopContact($oConvPartContact);
+					$aLogEntryAsArray = [
+						'user_id' => is_null($oConvPartUser) ? 0 : $oConvPartUser->GetKey(),
+						'user_login' => is_null($oConvPartUser) ? Dict::Format('combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin', $aConvPart['author']['name']) : $oConvPartUser->Get('login'),
+						'date' => '@' . (string) $aConvPart['created_at'],
+						'message' => $aConvPart['body'],
+					];
+					$sLogEntryAsJsonObject = json_decode(json_encode($aLogEntryAsArray));
+					$$sTargetLogVarName->AddLogEntryFromJSON($sLogEntryAsJsonObject, false);
+				}
+
+				// - Finally save the logs
+				$oTicket->Set($sTicketPublicLogAttCode, $oPublicLog);
+				$oTicket->Set($sTicketPrivateLogAttCode, $oPrivateLog);
+				$oTicket->DBUpdate();
 			} else {
 				$oTicket = null;
 				IssueLog::Error('Ticket could not be created, blocked by CheckToWrite controls', ConfigHelper::GetLogChannel(), [
@@ -637,7 +868,7 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 	 */
 	protected function PrepareViewTicketCanvas($sReferrerListType)
 	{
-		// Make object models
+		// Make Intercom object models
 		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
 		$oTicket = $this->GetTicketFromComponentID();
@@ -754,22 +985,36 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 	 */
 	protected function PrepareCreateTicketCanvas($sTicketClass)
 	{
+		/** @var array<string> $aTicketAttCodesMapping */
 		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
 		/** @var array<string> $aTicketConfiguredAttCodes */
 		$aTicketConfiguredAttCodes = ConfigHelper::GetModuleSetting('sync_app.create_ticket.form_attributes');
 		$sTicketDefaultState = MetaModel::GetDefaultState($sTicketClass);
 
+		// Retrieve caller
+		$oContactModel = Contact::FromCanvasKitInitializeConversationDetailsData($this->aData);
+		$oCaller = $oContactModel->GetItopContact();
+
 		// Mock ticket to apply form values and trigger dependant fields
-		$aMockValues = array_merge(
-			is_null($this->aData['input_values']) ? [] : $this->aData['input_values'],
-			['org_id' => 3, 'caller_id' => 6]
-		);
+		// - Default value for the caller
+		$aMockValues = [
+			$aTicketAttCodesMapping['org_id'] => $oCaller->Get($aTicketAttCodesMapping['org_id']),
+			$aTicketAttCodesMapping['caller_id'] => $oCaller->GetKey(),
+		];
+		// - Submitted values, we need to decode the attribute codes
+		if (is_array($this->aData['input_values'])) {
+			foreach ($this->aData['input_values'] as $sInputComponentID => $sInputValue) {
+				$aMockValues[static::DecodeAttCodeFromInputComponentID($sInputComponentID)] = static::DecodeAttValueFromInputComponentValue($sInputComponentID, $sInputValue);
+			}
+		}
 		$oMockTicket = MetaModel::NewObject($sTicketClass, $aMockValues);
 
 		$aAttComponents = [];
 		// Retrieve ticket attributes to add to the form: either mandatory or requested via the configuration (read-only attributes are skipped)
 		$aTicketAllAttCodes = MetaModel::FlattenZList(MetaModel::GetZListItems($sTicketClass, 'details'));
 		foreach ($aTicketAllAttCodes as $sAttCode) {
+			/** @var string $sComponentID ID is prefixed because when updating the form fordependant fields, only the changed component ID is send (eg. "service_id"), so in order to now where to redirect it (Operation), we add this as context */
+			$sComponentID = static::EncodeAttCodeToInputComponentID($sAttCode);
 			$oAttDef = MetaModel::GetAttributeDef($sTicketClass, $sAttCode);
 			$iFlags = MetaModel::GetInitialStateAttributeFlags($sTicketClass, $sTicketDefaultState, $sAttCode);
 
@@ -813,18 +1058,17 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 					$aAllowedValues = $oAttDef->GetAllowedValues(['this' => $oMockTicket] /* No args as the ticket is being created */);
 					// Simple "string" attributes
 					if (is_null($aAllowedValues)) {
-						$aAttributeComponent = ComponentFactory::MakeStringField($sAttCode, $sLabel, $sDefaultValue, null);
+						$aAttributeComponent = ComponentFactory::MakeStringField($sComponentID, $sLabel, $sDefaultValue, null);
 					}
 					// Enums and such
 					else {
-						$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sAttCode, $aAllowedValues, $sLabel, $sDefaultValue, true);
+						$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sComponentID, $aAllowedValues, $sLabel, $sDefaultValue, true);
 					}
 					break;
 
 				case 'Text':
 				case 'HTML':
-					// TODO: Handle HTML properly (in and out)
-					$aAttributeComponent = ComponentFactory::MakeTextareaField($sAttCode, $sLabel, $sDefaultValue, null);
+					$aAttributeComponent = ComponentFactory::MakeTextareaField($sComponentID, $sLabel, $sDefaultValue, null);
 					break;
 
 				case 'ExtKey':
@@ -833,7 +1077,7 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 						return utils::HtmlEntityDecode($sValue);
 					}, $oAttDef->GetAllowedValues(['this' => $oMockTicket]));
 
-					$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sAttCode, $aAllowedValues, $sLabel, $sDefaultValue, true);
+					$aAttributeComponent = ComponentFactory::MakeEnumValuesDropdown($sComponentID, $aAllowedValues, $sLabel, $sDefaultValue, true);
 					break;
 
 				// No date(time) input in the Intercom framework. We can imagine using a regular text input with the expected format in the placeholder but it's not great.
@@ -875,7 +1119,7 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 		// Button components
 		$aButtonsComponents = [
 			ComponentFactory::MakeMediumSpacer(),
-			ComponentFactory::MakeSubmitButton('create-ticket', Dict::S('combodo-intercom-integration:SyncApp:CreateButton:Title')),
+			ComponentFactory::MakeSubmitButton('create-ticket-submit', Dict::S('combodo-intercom-integration:SyncApp:CreateButton:Title')),
 			ComponentFactory::MakeBackButton('home'),
 		];
 
@@ -901,6 +1145,8 @@ IssueLog::Debug('input values', ConfigHelper::GetLogChannel(), [
 			Dict::S('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Title'),
 			Dict::Format('combodo-intercom-integration:SyncApp:CreateTicketCanvas:Success:Description', $oTicket->GetRawName())
 		);
+		$aComponents[] = ComponentFactory::MakeDivider();
+		$aComponents[] = ComponentFactory::MakeBackButton('home', Dict::S('combodo-intercom-integration:SyncApp:DoneButton:Title'));
 
 		// Prepare canvas
 		$aCanvas = [

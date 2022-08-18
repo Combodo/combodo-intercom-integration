@@ -9,14 +9,13 @@ namespace Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasK
 
 
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
-use Combodo\iTop\Extension\IntercomIntegration\Helper\IconHelper;
 use Dict;
 use DBObjectSet;
 use IssueLog;
 use MetaModel;
 
 /**
- * Class CanvasKitComponentFactory
+ * Class ComponentFactory
  * Factory to make Canvas Kit components {@link https://developers.intercom.com/canvas-kit-reference/reference}
  *
  * @package Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit
@@ -273,6 +272,17 @@ class ComponentFactory
 		return $aComponent;
 	}
 
+	/**
+	 * @param string        $sID ID of the dropdown, on submit value it's not this ID that wil be retrieved but the one from the selected value
+	 * @param array         $aAllowedValues Allowed values for the dropdown, must be of the form "value" => "label"
+	 * @param string|null   $sLabel Label of the field
+	 * @param string|null   $sValue Prefilled value of the field input, ignored if not among the $aAllowedValues
+	 * @param false         $bSubmitAction If set to true, the whole form will be submitted on value selection. Useful to reload form with dependant fields.
+	 * @param string        $sSaveState {@see \Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\CanvasKit\InteractiveComponentSaveStates}
+	 * @param false         $bIsDisabled Set to true to disable the field and avoid any interaction from the user
+	 *
+	 * @return array Canvas Kit Dropdown component for a dropdown selection field {@link https://developers.intercom.com/canvas-kit-reference/reference/dropdown}
+	 */
 	public static function MakeEnumValuesDropdown($sID, $aAllowedValues, $sLabel = null, $sValue = null, $bSubmitAction = false, $sSaveState = InteractiveComponentSaveStates::UNSAVED, $bIsDisabled = false)
 	{
 		$aComponent = [
@@ -300,7 +310,7 @@ class ComponentFactory
 		if (strlen($sValue) > 0) {
 			// Check that selected value among allowed values otherwise Intercom will crash
 			if (in_array($sValue, array_keys($aAllowedValues))) {
-				$aComponent["value"] = (string) $sValue; // Force key to be a strina, otherwise it won't be valid {@link https://developers.intercom.com/canvas-kit-reference/reference/dropdown}
+				$aComponent["value"] = $sID.'::'.$sValue; // Mind that key MUST be a string, otherwise it won't be valid (see specs)
 			} else {
 				IssueLog::Debug('Selected value not set for attribute as it was not among the allowed values', ConfigHelper::GetLogChannel(), [
 					'attcode' => $sID,
@@ -326,7 +336,7 @@ class ComponentFactory
 		foreach ($aAllowedValues as $sAllowedValueKey => $sAllowedValueLabel) {
 			$aOptions[] = [
 				"type" => "option",
-				"id" => (string) $sAllowedValueKey, // Force key to be a strina, otherwise it won't be valid {@link https://developers.intercom.com/canvas-kit-reference/reference/dropdown}
+				"id" => $sID.'::'.$sAllowedValueKey, // Mind that key MUST be a string, otherwise it won't be valid (see specs)
 				"text" => $sAllowedValueLabel,
 			];
 		}

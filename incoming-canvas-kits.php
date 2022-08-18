@@ -32,7 +32,7 @@ try {
 	$oWebhooksHandler = new IncomingCanvasKitsHandler();
 	$sResponse = $oWebhooksHandler->HandleOperation();
 
-	IssueLog::Debug('Tip: When debugging Canvas Kit response, if it does not display on Intercom even though the JSON seems valid, paste it in the Canvas Kit Builder (https://app.intercom.com/a/canvas-kit-builder) as the error might not be in the JSON   syntax but in the components specs.', ConfigHelper::GetLogChannel());
+	IssueLog::Debug('Tip: When debugging Canvas Kit response, if it does not display on Intercom even though the JSON seems valid, paste it in the Canvas Kit Builder (https://app.intercom.com/a/canvas-kit-builder) as the error might not be in the JSON syntax but in the components specs.', ConfigHelper::GetLogChannel());
 	IssueLog::Debug('Canvas Kit response', ConfigHelper::GetLogChannel(), [
 		'response' => $sResponse,
 	]);

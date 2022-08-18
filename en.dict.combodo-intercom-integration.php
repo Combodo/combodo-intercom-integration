@@ -12,7 +12,14 @@ Dict::Add('EN US', 'English', 'English', array(
 	'Class:UserRequest/Attribute:intercom_ref+' => 'ID of the conversation within the Intercom app',
 ));
 
-// - Sync app: Conversation details
+// - Sync app: Ticket sync.
+// Note: Don't need to translate this in other languages as we can't know the Intercom agent language
+Dict::Add('EN US', 'English', 'English', array(
+	'combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin' => '%1$s (Intercom)',
+));
+
+// - Sync app: Conversation details canvas
+// Note: Don't need to translate this in other languages as we can't know the Intercom agent language
 Dict::Add('EN US', 'English', 'English', array(
 	'combodo-intercom-integration:SyncApp:HomeButton:Title' => 'Home',
 	'combodo-intercom-integration:SyncApp:BackButton:Title' => 'Back',
@@ -44,8 +51,9 @@ Dict::Add('EN US', 'English', 'English', array(
 	'combodo-intercom-integration:SyncApp:CreateTicketCanvas:Failure:Description' => 'Ticket could not be created, check that all mandatory fields are filled. If the issue remains, contact your '.ITOP_APPLICATION_SHORT.' administrator',
 ));
 
-// - Sync app: Messenger
+// - Sync app: Messenger canvas
+// Note: Don't need to translate this in other languages as we can't know the Intercom agent language
 Dict::Add('EN US', 'English', 'English', array(
-	'combodo-intercom-integration:SyncApp:TicketCreatedMessage:Description' => 'A ticket has been created for from this conversation. You can track its progression with the following link: %1$s',
+	'combodo-intercom-integration:SyncApp:TicketCreatedMessage:Title' => 'A ticket has been created from this conversation. You can track its progression with the following link',
 	'combodo-intercom-integration:SyncApp:TicketLinkedMessage:Title' => '%1$s linked a ticket',
 ));

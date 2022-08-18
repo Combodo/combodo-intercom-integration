@@ -57,16 +57,20 @@
 				<caller_id>caller_id</caller_id>
 				<status>status</status>
 				<intercom_ref>intercom_ref</intercom_ref>
+				<!-- Target log for public messages of the end-user and the Intercom support agent -->
+				<public_log>public_log</public_log>
+				<!-- Target log for private notes of the Intercom support agent -->
+				<private_log>private_log</private_log>
 			</sync_app.ticket.attributes_mapping>
 			<sync_app.create_ticket.form_attributes type="array">
 				<attribute>title</attribute>
 				<attribute>description</attribute>
 				<attribute>urgency</attribute>
 			</sync_app.create_ticket.form_attributes>
-			<sync_app.search_ticket.done_states type="array">
+			<sync_app.search_ticket.excluded_states type="array">
 				<state>rejected</state>
 				<state>closed</state>
-			</sync_app.search_ticket.done_states>
+			</sync_app.search_ticket.excluded_states>
 			<sync_app.search_ticket.subtitle_attribute>title</sync_app.search_ticket.subtitle_attribute>
 			<sync_app.view_ticket.details_attributes type="array">
 				<attribute>status</attribute>
