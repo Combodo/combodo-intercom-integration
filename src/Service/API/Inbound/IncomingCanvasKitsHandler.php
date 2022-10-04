@@ -164,7 +164,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 			$sErrorMessage = 'Signature does not match payload and secret key';
 			IssueLog::Error($sErrorMessage, ConfigHelper::GetLogChannel(), [
 				'signature' => $this->sSignature,
-				'digest (hash_hmac sha1)' => $sDigest,
+				'digest (hash_hmac sha256)' => $sDigest,
 				'secret' => $sClientSecret,
 				'payload' => $this->sPayload,
 			]);
