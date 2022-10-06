@@ -15,6 +15,7 @@ Dict::Add('EN US', 'English', 'English', array(
 // - Sync app: Ticket sync.
 // Note: Don't need to translate this in other languages as we can't know the Intercom agent language
 Dict::Add('EN US', 'English', 'English', array(
+	'combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:NewMessageFromConversation' => 'Message synchronized from the Intercom conversation',
 	'combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin' => '%1$s (Intercom)',
 ));
 

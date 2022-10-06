@@ -12,6 +12,7 @@ use AttributeExternalKey;
 use AttributeText;
 use Combodo\iTop\Extension\IntercomIntegration\Exception\ModuleException;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
+use Combodo\iTop\Extension\IntercomIntegration\Helper\DatamodelObjectFinder;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\IconHelper;
 use Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Admin;
 use Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Contact;
@@ -561,60 +562,6 @@ HTML,
 	}
 
 	/**
-	 * @param string $sEmail Email of the Contact object to find
-	 *
-	 * @return \DBObject|null The first *non* obsolete Contact object with $sEmail
-	 * @throws \CoreException
-	 * @throws \CoreUnexpectedValue
-	 * @throws \MySQLException
-	 * @throws \OQLException
-	 */
-	protected function GetItopContactFromEmail($sEmail)
-	{
-		// Search for first corresponding contact
-		$oSearch = DBObjectSearch::FromOQL('SELECT Person WHERE email = :email');
-		$oSearch->SetShowObsoleteData(false);
-
-		$oSet = new DBObjectSet($oSearch, [], ['email' => $sEmail]);
-		$oSet->SetLimit(1);
-
-		$oContact = $oSet->Fetch();
-		if (is_null($oContact)) {
-			IssueLog::Debug('Unable to retrieve contact object from email', ConfigHelper::GetLogChannel(), [
-				'email' => $sEmail,
-			]);
-			return null;
-		}
-
-		return $oContact;
-	}
-
-	protected function GetItopUserFromItopContact($oContact)
-	{
-		if (is_null($oContact)) {
-			IssueLog::Debug('Unable to retrieve user object, no contact passed', ConfigHelper::GetLogChannel());
-			return null;
-		}
-
-		// Search for first corresponding user
-		$oSearch = DBObjectSearch::FromOQL('SELECT User WHERE email = :email');
-		$oSearch->SetShowObsoleteData(false);
-
-		$oSet = new DBObjectSet($oSearch, [], ['email' => $oContact->Get('email')]);
-		$oSet->SetLimit(1);
-
-		$oUser = $oSet->Fetch();
-		if (is_null($oUser)) {
-			IssueLog::Debug('Unable to retrieve user object from contact object', ConfigHelper::GetLogChannel(), [
-				'contact' => $oContact,
-			]);
-			return null;
-		}
-
-		return $oUser;
-	}
-
-	/**
 	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Conversation $oConversationModel
 	 *
 	 * @return \DBObjectSet Set of tickets linked to $oConversationModel
@@ -754,9 +701,9 @@ HTML,
 				if ($sConvSourceAuthorType === 'user'){
 					$oConvSourceContact = $oContactModel->GetItopContact();
 				} else {
-					$oConvSourceContact = $this->GetItopContactFromEmail($aConvSource['author']['email']);
+					$oConvSourceContact = DatamodelObjectFinder::GetContactFromEmail($aConvSource['author']['email']);
 				}
-				$oConvSourceUser = $this->GetItopUserFromItopContact($oConvSourceContact);
+				$oConvSourceUser = DatamodelObjectFinder::GetUserFromContact($oConvSourceContact);
 				$aLogEntryAsArray = [
 					'user_id' => is_null($oConvSourceUser) ? 0 : $oConvSourceUser->GetKey(),
 					'user_login' => is_null($oConvSourceUser) ? Dict::Format('combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin', $aConvSource['author']['name']) : $oConvSourceUser->Get('login'),
@@ -794,8 +741,8 @@ HTML,
 							break;
 					}
 
-					$oConvPartContact = $this->GetItopContactFromEmail($aConvPart['author']['email']);
-					$oConvPartUser = $this->GetItopUserFromItopContact($oConvPartContact);
+					$oConvPartContact = DatamodelObjectFinder::GetContactFromEmail($aConvPart['author']['email']);
+					$oConvPartUser = DatamodelObjectFinder::GetUserFromContact($oConvPartContact);
 					$aLogEntryAsArray = [
 						'user_id' => is_null($oConvPartUser) ? 0 : $oConvPartUser->GetKey(),
 						'user_login' => is_null($oConvPartUser) ? Dict::Format('combodo-intercom-integration:SyncApp:SynchedTicket:LogEntry:FallbackUserLogin', $aConvPart['author']['name']) : $oConvPartUser->Get('login'),
