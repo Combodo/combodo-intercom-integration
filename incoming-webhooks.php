@@ -14,16 +14,6 @@
 use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingWebhooksHandler;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
 
-$sAppRootFilePath = 'approot.inc.php';
-// Depending on where the module is executed (env-xxx, datamodels with symlinks, extensions with symlinks, ...), approot file path can be different. So we try to find it.
-for ($iDepth = 0; $iDepth <= 5; $iDepth++) {
-	if (file_exists($sAppRootFilePath)) {
-		require_once $sAppRootFilePath;
-		break;
-	}
-
-	$sAppRootFilePath = '../'.$sAppRootFilePath;
-}
 // Necessary for autoloaders to be enabled
 require_once APPROOT.'/application/startup.inc.php';
 
