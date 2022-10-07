@@ -9,7 +9,7 @@
 Dict::Add('EN US', 'English', 'English', array(
 	'Class:UserRequest/Attribute:origin/Value:chat' => 'chat',
 	'Class:UserRequest/Attribute:intercom_ref' => 'Intercom conversation ID',
-	'Class:UserRequest/Attribute:intercom_ref+' => 'ID of the conversation within the Intercom app',
+	'Class:UserRequest/Attribute:intercom_ref+' => 'ID of the conversation within the Intercom app. Can be useful when '.ITOP_APPLICATION_SHORT.' and Intercom teams need to make sure they talk about the same case.',
 ));
 
 // - Sync app: Ticket sync.
