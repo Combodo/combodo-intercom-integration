@@ -97,8 +97,7 @@ HTML;
 				$oSearch = DBObjectSearch::FromOQL("SELECT $sTicketClass WHERE $sTicketIntercomRefAttCode = :intercom_ref");
 				$oSet = new DBObjectSet($oSearch, [], ['intercom_ref' => $oNewMessageWebhook->GetIntercomID()]);
 				$oSet->OptimizeColumnLoad([$oSearch->GetClassAlias() => [$sLogAttCode]]);
-// TODO: Authenticate as an Admin user with the token thing
-\UserRights::Login('admin');
+
 				// - Update linked tickets with log entry
 				while ($oTicket = $oSet->Fetch()) {
 					// TODO: When extension min. iTop version will be 2.7.2, change this to follow the new API
@@ -106,7 +105,7 @@ HTML;
 					// - Change the desired info $oTicket::SetTrackInfo('Created from Intercom'); $oTicket::SetTrackOrigin('custom-extension');
 					/** @var \CMDBChange $oChange */
 					$oChange = MetaModel::NewObject('CMDBChange');
-					$oChange->Set('date', time());
+					$oChange->Set('date', $oNewMessageWebhook->GetFirstSentDateTime()->format('U'));
 					$oChange->Set('origin', 'custom-extension');
 					$oChange->Set('userinfo', 'Intercom chat integration');
 					$oChange->DBInsert();

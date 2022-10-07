@@ -688,8 +688,7 @@ HTML,
 				// Then copy conversation in logs
 				// Note: In the following we have to use the \ormCaseLog::AddLogEntryFromJSON() method in order to define the correct user of the entry
 				// that is why we encode/decode entries in JSON. Otherwise entries would all be marked are from the current user.
-// TODO: Authenticate as an Admin user with the token thing
-\UserRights::Login('admin');
+
 				$oPublicLog = new ormCaseLog();
 				$oPrivateLog = new ormCaseLog();
 

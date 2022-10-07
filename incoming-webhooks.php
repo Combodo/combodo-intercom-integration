@@ -16,9 +16,12 @@ use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
 
 // Necessary for autoloaders to be enabled
 require_once APPROOT.'/application/startup.inc.php';
+require_once APPROOT.'/application/itopwebpage.class.inc.php';
 
 // Processing
 try {
+	LoginWebPage::DoLoginEx(null, false, LoginWebPage::EXIT_HTTP_401);
+
 	$oWebhooksHandler = new IncomingWebhooksHandler();
 	$sResponse = $oWebhooksHandler->HandleOperation();
 
