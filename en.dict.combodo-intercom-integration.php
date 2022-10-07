@@ -10,6 +10,8 @@ Dict::Add('EN US', 'English', 'English', array(
 	'Class:UserRequest/Attribute:origin/Value:chat' => 'chat',
 	'Class:UserRequest/Attribute:intercom_ref' => 'Intercom conversation ID',
 	'Class:UserRequest/Attribute:intercom_ref+' => 'ID of the conversation within the Intercom app. Can be useful when '.ITOP_APPLICATION_SHORT.' and Intercom teams need to make sure they talk about the same case.',
+	'Class:UserRequest/Attribute:intercom_url' => 'Intercom conversation URL',
+	'Class:UserRequest/Attribute:intercom_url+' => 'Open the corresponding conversation directly in the Intercom (requires an Intercom account)',
 ));
 
 // - Sync app: Ticket sync.
@@ -36,7 +38,7 @@ Dict::Add('EN US', 'English', 'English', array(
 	'combodo-intercom-integration:SyncApp:ListOngoingTicketsCanvas:Title' => 'Ongoing ticket(s) for this person',
 	'combodo-intercom-integration:SyncApp:ListLinkedTicketsCanvas:Title' => 'Linked ticket(s)',
 	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToThisConversation' => 'Linked to this conversation',
-	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToAnotherConversation' => 'Linked to conversation [#%1$s](https://app.intercom.com/a/apps/%2$s/inbox/inbox/all/conversations/%1$s)',
+	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToAnotherConversation' => 'Linked to conversation [#%1$s](%2$s)',
 	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToNoConversation' => 'Not linked to any conversation',
 	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:LinkTicket' => 'Link to conversation',
 	'combodo-intercom-integration:SyncApp:ViewTicketCanvas:OpeniTopBackoffice' => 'Open in '.ITOP_APPLICATION_SHORT.' backoffice',

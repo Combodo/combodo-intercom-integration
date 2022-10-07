@@ -363,6 +363,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 		$aComponents = [];
 		try {
 			$oTicket->Set($aTicketAttCodesMapping['intercom_ref'], $oConversationModel->GetIntercomID());
+			$oTicket->Set($aTicketAttCodesMapping['intercom_url'], $this->GetIntercomConversationUrl($oConversationModel->GetIntercomID()));
 			$oTicket->DBUpdate();
 
 			$aComponents = array_merge($aComponents, AlertComponentsFactory::MakeLinkAlertComponents(
@@ -634,6 +635,12 @@ HTML,
 				$sTicketIntercomRefAttCode = $aTicketAttCodesMapping['intercom_ref'];
 			}
 			$aTicketDefaultValues[$sTicketIntercomRefAttCode] = $oConversationModel->GetIntercomID();
+			// - Intercom URL
+			$sTicketIntercomURLAttCode = 'intercom_url';
+			if (isset($aTicketAttCodesMapping['intercom_url'])) {
+				$sTicketIntercomURLAttCode = $aTicketAttCodesMapping['intercom_url'];
+			}
+			$aTicketDefaultValues[$sTicketIntercomURLAttCode] = $this->GetIntercomConversationUrl($oConversationModel->GetIntercomID());
 
 			// - Public log
 			$sTicketPublicLogAttCode = 'public_log';
@@ -774,6 +781,17 @@ HTML,
 		return $oTicket;
 	}
 
+	/**
+	 * @param string $sConversationID ID of the conversation itself
+	 *
+	 * @return string
+	 * @since 1.1.0
+	 */
+	protected function GetIntercomConversationUrl($sConversationID)
+	{
+		return sprintf('https://app.intercom.com/a/apps/%1$s/inbox/inbox/all/conversations/%2$s', $this->sWorkspaceID, $sConversationID);
+	}
+
 	//-------------------------------
 	// Canvas Kit: Canvas
 	//-------------------------------
@@ -875,7 +893,7 @@ HTML,
 		if ($bTicketAlreadyLinkedToThisConversation) {
 			$sSubtitle = Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToThisConversation');
 		} elseif ($bTicketAlreadyLinkedToAnotherConversation) {
-			$sSubtitle = Dict::Format('combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToAnotherConversation', $oTicket->Get($aTicketAttCodesMapping['intercom_ref']), $this->sWorkspaceID);
+			$sSubtitle = Dict::Format('combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToAnotherConversation', $sTicketIntercomRef, $this->GetIntercomConversationUrl($sTicketIntercomRef));
 		} else {
 			$sSubtitle = Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:Subtitle:LinkedToNoConversation');
 		}
