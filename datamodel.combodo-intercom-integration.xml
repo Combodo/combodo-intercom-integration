@@ -28,11 +28,8 @@
 							<items>
 								<item id="fieldset:Ticket:relation" _delta="must_exist">
 									<items>
-										<item id="intercom_ref" _delta="define">
-											<rank>100</rank>
-										</item>
 										<item id="intercom_url" _delta="define">
-											<rank>110</rank>
+											<rank>100</rank>
 										</item>
 									</items>
 								</item>
