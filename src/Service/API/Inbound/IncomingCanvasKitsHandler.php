@@ -30,6 +30,7 @@ use Exception;
 use IssueLog;
 use MetaModel;
 use ormCaseLog;
+use ormLinkSet;
 use utils;
 
 /**
@@ -201,8 +202,8 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
 
 		// Prepare component for ticket already linked to the conversation
-		$oSet = $this->GetLinkedTicketsSet($oConversationModel);
-		$iLinkedTicketsCount = $oSet->CountWithLimit(static::MAX_TICKETS_DISPLAY);
+		$oLinkedTicketsSet = $this->GetLinkedTicketsSet($oConversationModel);
+		$iLinkedTicketsCount = $oLinkedTicketsSet->CountWithLimit(static::MAX_TICKETS_DISPLAY);
 		$sTitle = $iLinkedTicketsCount === 0 ? Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTickets:NoTicket') : Dict::Format('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTickets:SomeTickets',
 			$iLinkedTicketsCount);
 		$bDisabled = $iLinkedTicketsCount === 0;
@@ -221,8 +222,8 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 		];
 
 		// Prepare component for ongoing tickets for the contact
-		$oSet = $this->GetOngoingTicketsSet($oContactModel);
-		$iOngoingTicketsCount = $oSet->CountWithLimit(static::MAX_TICKETS_DISPLAY);
+		$oOngoingTicketsSet = $this->GetOngoingTicketsSet($oContactModel);
+		$iOngoingTicketsCount = $oOngoingTicketsSet->CountWithLimit(static::MAX_TICKETS_DISPLAY);
 		$sTitle = $iOngoingTicketsCount === 0 ? Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:OngoingTickets:NoTicket') : Dict::Format('combodo-intercom-integration:SyncApp:HomeCanvas:OngoingTickets:SomeTickets',
 			$iOngoingTicketsCount);
 		$bDisabled = $iOngoingTicketsCount === 0;
@@ -239,6 +240,58 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 			],
 			"disabled" => $bDisabled,
 		];
+
+		// Prepare components for linked tickets hint and sync. button
+		$aLinkedTicketsExplanationHeaderComponent = [
+			"type" => "text",
+			"text" => "*".Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTicketsExplanation:Title')."*",
+			"style" => "header",
+		];
+		$aLinkedTicketsExplanationTextComponent = [
+			"type" => "text",
+			"text" => Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTicketsExplanation:Text:NoTicketLinked'),
+			"style" => "paragraph",
+		];
+		$aLinkedTicketsExplanationSpacerComponent = ComponentFactory::MakeExtraSmallSpacer();
+		// Spacer by default to occupy as less space as possible if no button needed
+		$aLinkedTicketsSyncButtonComponent = ComponentFactory::MakeExtraSmallSpacer();
+
+		if ($iLinkedTicketsCount > 0) {
+			// Increase spacer so button isn't too close to the hint
+			$aLinkedTicketsExplanationSpacerComponent = ComponentFactory::MakeMediumSpacer();
+
+			$oSyncedTicketsSet = $this->GetSyncedLinkedTicketsSet($oConversationModel);
+			$iSyncedTicketsCount = $oSyncedTicketsSet->CountWithLimit(static::MAX_TICKETS_DISPLAY);
+
+			if ($iSyncedTicketsCount === $iLinkedTicketsCount) {
+				$aLinkedTicketsExplanationTextComponent = [
+					"type" => "text",
+					"text" => Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTicketsExplanation:Text:SyncActive'),
+					"style" => "paragraph",
+				];
+
+				$aLinkedTicketsSyncButtonComponent = ComponentFactory::MakeSecondarySubmitButton('pause-linked-tickets-submit', Dict::S('combodo-intercom-integration:SyncApp:PauseLinkedTicketsSync:Title'));
+			} else {
+				// If no ticket synced
+				if ($iSyncedTicketsCount === 0) {
+					$aLinkedTicketsExplanationTextComponent = [
+						"type" => "text",
+						"text" => Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTicketsExplanation:Text:SyncInactive'),
+						"style" => "paragraph",
+					];
+				}
+				// Else, only some tickets are synced but not all of them, show a disclaimer
+				else {
+					$aLinkedTicketsExplanationTextComponent = [
+						"type" => "text",
+						"text" => Dict::Format('combodo-intercom-integration:SyncApp:HomeCanvas:LinkedTicketsExplanation:Text:SyncPartial', $iSyncedTicketsCount),
+						"style" => "error",
+					];
+				}
+
+				$aLinkedTicketsSyncButtonComponent = ComponentFactory::MakePrimarySubmitButton('resume-linked-tickets-submit', Dict::S('combodo-intercom-integration:SyncApp:ResumeLinkedTicketsSync:Title'));
+			}
+		}
 
 		// Prepare response
 		$aResponse = [
@@ -264,16 +317,10 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 							],
 						],
 						ComponentFactory::MakeMediumSpacer(),
-						[
-							"type" => "text",
-							"text" => "*".Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:Hint:Title')."*",
-							"style" => "header",
-						],
-						[
-							"type" => "text",
-							"text" => Dict::S('combodo-intercom-integration:SyncApp:HomeCanvas:Hint:Text'),
-							"style" => "paragraph",
-						],
+						$aLinkedTicketsExplanationHeaderComponent,
+						$aLinkedTicketsExplanationTextComponent,
+						$aLinkedTicketsExplanationSpacerComponent,
+						$aLinkedTicketsSyncButtonComponent,
 					],
 				],
 			],
@@ -364,6 +411,7 @@ class IncomingCanvasKitsHandler extends AbstractIncomingEventsHandler
 		try {
 			$oTicket->Set($aTicketAttCodesMapping['intercom_ref'], $oConversationModel->GetIntercomID());
 			$oTicket->Set($aTicketAttCodesMapping['intercom_url'], $this->GetIntercomConversationUrl($oConversationModel->GetIntercomID()));
+			$oTicket->Set($aTicketAttCodesMapping['intercom_sync_activated'], 'yes');
 			$oTicket->DBUpdate();
 
 			$aComponents = array_merge($aComponents, AlertComponentsFactory::MakeLinkAlertComponents(
@@ -499,6 +547,26 @@ HTML,
 		return $this->Operation_SubmitConversationDetailsFlow_CreateTicketComponent();
 	}
 
+	protected function Operation_SubmitConversationDetailsFlow_PauseLinkedTicketsSubmitComponent()
+	{
+		// Make Intercom object models
+		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
+
+		$this->ChangeLinkedTicketsSyncState($oConversationModel, false);
+
+		return $this->Operation_SubmitConversationDetailsFlow_HomeComponent();
+	}
+
+	protected function Operation_SubmitConversationDetailsFlow_ResumeLinkedTicketsSubmitComponent()
+	{
+		// Make Intercom object models
+		$oConversationModel = Conversation::FromCanvasKitInitializeConversationDetailsData($this->aData);
+
+		$this->ChangeLinkedTicketsSyncState($oConversationModel, true);
+
+		return $this->Operation_SubmitConversationDetailsFlow_HomeComponent();
+	}
+
 	//-------------------------------
 	// Helper methods
 	//-------------------------------
@@ -580,6 +648,26 @@ HTML,
 	}
 
 	/**
+	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Conversation $oConversationModel
+	 *
+	 * @return \DBObjectSet Set of tickets linked to $oConversationModel with sync. activated
+	 */
+	protected function GetSyncedLinkedTicketsSet(Conversation $oConversationModel)
+	{
+		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
+
+		$oSet = $this->GetLinkedTicketsSet($oConversationModel);
+
+		$oSyncedSearch = $oSet->GetFilter();
+		$oSyncedSearch->AddCondition($aTicketAttCodesMapping['intercom_sync_activated'], 'yes');
+
+		$oSyncedSet = new DBObjectSet($oSyncedSearch, $oSet->GetRealSortOrder(), $oSet->GetArgs());
+		$oSyncedSet->OptimizeColumnLoad([$oSyncedSet->GetClassAlias() => []]);
+
+		return $oSyncedSet;
+	}
+
+	/**
 	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Contact $oContactModel
 	 *
 	 * @return \DBObjectSet Set of ongoing tickets for $oContactModel
@@ -595,6 +683,34 @@ HTML,
 		$oSet = new DBObjectSet($oSearch, [], ['caller_id' => $oContactModel->GetItopContact()->GetKey(), 'states' => $aTicketExcludedStates]);
 
 		return $oSet;
+	}
+
+	/**
+	 * @param \Combodo\iTop\Extension\IntercomIntegration\Model\Intercom\Conversation $oConversationModel
+	 * @param                                                                         $bActivate true to activate the sync., false otherwise
+	 *
+	 * @return void
+	 * @throws \CoreCannotSaveObjectException
+	 * @throws \CoreException
+	 * @throws \CoreUnexpectedValue
+	 * @throws \MySQLException
+	 */
+	protected function ChangeLinkedTicketsSyncState(Conversation $oConversationModel, $bActivate)
+	{
+		$aTicketAttCodesMapping = ConfigHelper::GetModuleSetting('sync_app.ticket.attributes_mapping');
+
+		$sSyncAttCode = $aTicketAttCodesMapping['intercom_sync_activated'];
+		$sSyncValue = $bActivate ? 'yes' : 'no';
+
+		$oSet = $this->GetLinkedTicketsSet($oConversationModel);
+		$oSet->OptimizeColumnLoad([
+			$oSet->GetClassAlias() => [$sSyncAttCode],
+		]);
+
+		while ($oTicket = $oSet->Fetch()) {
+			$oTicket->Set($sSyncAttCode, $sSyncValue);
+			$oTicket->DBUpdate();
+		}
 	}
 
 	/**
@@ -641,6 +757,12 @@ HTML,
 				$sTicketIntercomURLAttCode = $aTicketAttCodesMapping['intercom_url'];
 			}
 			$aTicketDefaultValues[$sTicketIntercomURLAttCode] = $this->GetIntercomConversationUrl($oConversationModel->GetIntercomID());
+			// - Intercom sync. activate
+			$sTicketIntercomSyncActivatedAttCode = 'intercom_sync_activated';
+			if (isset($aTicketAttCodesMapping['intercom_sync_activated'])) {
+				$sTicketIntercomSyncActivatedAttCode = $aTicketAttCodesMapping['intercom_sync_activated'];
+			}
+			$aTicketDefaultValues[$sTicketIntercomSyncActivatedAttCode] = 'yes';
 
 			// - Public log
 			$sTicketPublicLogAttCode = 'public_log';
@@ -916,7 +1038,7 @@ HTML,
 			ComponentFactory::MakeMediumSpacer(),
 		];
 		// - Link to ticket
-		$aButtonsComponents[] = ComponentFactory::MakeSubmitButton(
+		$aButtonsComponents[] = ComponentFactory::MakePrimarySubmitButton(
 			static::COMPONENT_ID_LINK_TICKET_PREFIX."::{$sTicketClass}::{$oTicket->GetKey()}",
 			Dict::S('combodo-intercom-integration:SyncApp:ViewTicketCanvas:LinkTicket'),
 			$bTicketAlreadyLinkedToThisConversation
@@ -1083,7 +1205,7 @@ HTML,
 		// Button components
 		$aButtonsComponents = [
 			ComponentFactory::MakeMediumSpacer(),
-			ComponentFactory::MakeSubmitButton('create-ticket-submit', Dict::S('combodo-intercom-integration:SyncApp:CreateButton:Title')),
+			ComponentFactory::MakePrimarySubmitButton('create-ticket-submit', Dict::S('combodo-intercom-integration:SyncApp:CreateButton:Title')),
 			ComponentFactory::MakeBackButton('home'),
 		];
 

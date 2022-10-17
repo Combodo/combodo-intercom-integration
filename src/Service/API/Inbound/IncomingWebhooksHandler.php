@@ -69,6 +69,11 @@ class IncomingWebhooksHandler extends AbstractIncomingEventsHandler
 				if (isset($aTicketAttCodesMapping['intercom_ref'])) {
 					$sTicketIntercomRefAttCode = $aTicketAttCodesMapping['intercom_ref'];
 				}
+				// - Intercom sync. activate
+				$sTicketIntercomSyncActivatedAttCode = 'intercom_sync_activated';
+				if (isset($aTicketAttCodesMapping['intercom_sync_activated'])) {
+					$sTicketIntercomSyncActivatedAttCode = $aTicketAttCodesMapping['intercom_sync_activated'];
+				}
 
 				// Add new log entry
 				// - Prepare entry
@@ -94,8 +99,8 @@ HTML;
 				$sLogAttCode = $oWebhook->GetTopicCode() === Webhook::ENUM_TOPIC_CONVERSATION_ADMIN_NOTED ? $sTicketPrivateLogAttCode : $sTicketPublicLogAttCode;
 
 				// - Retrieve linked tickets
-				$oSearch = DBObjectSearch::FromOQL("SELECT $sTicketClass WHERE $sTicketIntercomRefAttCode = :intercom_ref");
-				$oSet = new DBObjectSet($oSearch, [], ['intercom_ref' => $oNewMessageWebhook->GetIntercomID()]);
+				$oSearch = DBObjectSearch::FromOQL("SELECT $sTicketClass WHERE $sTicketIntercomRefAttCode = :intercom_ref AND $sTicketIntercomSyncActivatedAttCode = 'yes'");
+				$oSet = new DBObjectSet($oSearch, [], [$sTicketIntercomRefAttCode => $oNewMessageWebhook->GetIntercomID()]);
 				$oSet->OptimizeColumnLoad([$oSearch->GetClassAlias() => [$sLogAttCode]]);
 
 				// - Update linked tickets with log entry

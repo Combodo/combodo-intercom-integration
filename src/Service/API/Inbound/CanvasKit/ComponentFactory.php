@@ -95,20 +95,23 @@ class ComponentFactory
 	 * @param string|null   $sLabel If null, default label will be set
 	 * @param bool          $bDisabled Whether the button is disabled or not, meaning that the user cannot click on it
 	 *
-	 * @return array Canvas Kit Button component for go back to the $sComponentIDToGoBackTo canvas {@link https://developers.intercom.com/canvas-kit-reference/reference/button}
+	 * @return array Canvas Kit Button component for a submit button with "primary" color style {@link https://developers.intercom.com/canvas-kit-reference/reference/button}
 	 */
-	public static function MakeSubmitButton($sID, $sLabel = null, $bDisabled = false)
+	public static function MakePrimarySubmitButton($sID, $sLabel = null, $bDisabled = false)
 	{
-		if (is_null($sLabel)) {
-			$sLabel = Dict::S('combodo-intercom-integration:SyncApp:BackButton:Title');
-		}
+		return static::PrepareSubmitButton($sID, $sLabel, "primary", $bDisabled);
+	}
 
-		$aComponent = static::PrepareBaseButton($sID, $sLabel, "primary", $bDisabled);
-		$aComponent["action"] = [
-			"type" => "submit",
-		];
-
-		return $aComponent;
+	/**
+	 * @param string        $sID
+	 * @param string|null   $sLabel If null, default label will be set
+	 * @param bool          $bDisabled Whether the button is disabled or not, meaning that the user cannot click on it
+	 *
+	 * @return array Canvas Kit Button component for a submit button with "secondary" color style {@link https://developers.intercom.com/canvas-kit-reference/reference/button}
+	 */
+	public static function MakeSecondarySubmitButton($sID, $sLabel = null, $bDisabled = false)
+	{
+		return static::PrepareSubmitButton($sID, $sLabel, "secondary", $bDisabled);
 	}
 
 	/**
@@ -368,5 +371,27 @@ class ComponentFactory
 			"style" => $sStyle,
 			"disabled" => $bDisabled,
 		];
+	}
+
+	/**
+	 * @param string        $sID
+	 * @param string|null   $sLabel If null, default label will be set
+	 * @param string        $sStyle 'primary'|'secondary'
+	 * @param bool          $bDisabled Whether the button is disabled or not, meaning that the user cannot click on it
+	 *
+	 * @return array Canvas Kit Button component for a submit button {@link https://developers.intercom.com/canvas-kit-reference/reference/button}
+	 */
+	protected static function PrepareSubmitButton($sID, $sLabel = null, $sStyle = 'primary', $bDisabled = false)
+	{
+		if (is_null($sLabel)) {
+			$sLabel = Dict::S('combodo-intercom-integration:SyncApp:SubmitButton:Title');
+		}
+
+		$aComponent = static::PrepareBaseButton($sID, $sLabel, $sStyle, $bDisabled);
+		$aComponent["action"] = [
+			"type" => "submit",
+		];
+
+		return $aComponent;
 	}
 }

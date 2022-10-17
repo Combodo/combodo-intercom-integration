@@ -20,6 +20,15 @@
 					<default_value/>
 					<is_null_allowed>true</is_null_allowed>
 				</field>
+				<field id="intercom_sync_activated" xsi:type="AttributeEnum" _delta="define">
+					<values>
+						<value>yes</value>
+						<value>no</value>
+					</values>
+					<sql>intercom_sync_activated</sql>
+					<default_value>no</default_value>
+					<is_null_allowed>false</is_null_allowed>
+				</field>
 			</fields>
 			<presentation>
 				<details>
@@ -30,6 +39,9 @@
 									<items>
 										<item id="intercom_url" _delta="define">
 											<rank>100</rank>
+										</item>
+										<item id="intercom_sync_activated" _delta="define">
+											<rank>110</rank>
 										</item>
 									</items>
 								</item>
@@ -63,6 +75,7 @@
 				<status>status</status>
 				<intercom_ref>intercom_ref</intercom_ref>
 				<intercom_url>intercom_url</intercom_url>
+				<intercom_sync_activated>intercom_sync_activated</intercom_sync_activated>
 				<!-- Target log for public messages of the end-user and the Intercom support agent -->
 				<public_log>public_log</public_log>
 				<!-- Target log for private notes of the Intercom support agent -->
