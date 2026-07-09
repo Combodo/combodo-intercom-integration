@@ -7,14 +7,14 @@ namespace Composer\Autoload;
 class ComposerStaticInitfe626b7edf4c50f84f22dfa0d3a90ed8
 {
     public static $prefixLengthsPsr4 = array (
-        'C' => 
+        'C' =>
         array (
             'Combodo\\iTop\\Extension\\IntercomIntegration\\' => 43,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Combodo\\iTop\\Extension\\IntercomIntegration\\' => 
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\' =>
         array (
             0 => __DIR__ . '/../..' . '/src',
         ),
@@ -25,6 +25,7 @@ class ComposerStaticInitfe626b7edf4c50f84f22dfa0d3a90ed8
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\ConfigHelper' => __DIR__ . '/../..' . '/src/Helper/ConfigHelper.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\DatamodelObjectFinder' => __DIR__ . '/../..' . '/src/Helper/DatamodelObjectFinder.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Helper\\IconHelper' => __DIR__ . '/../..' . '/src/Helper/IconHelper.php',
+        'Combodo\\iTop\\Extension\\IntercomIntegration\\Hook\\IntercomBackofficeScriptExtension' => __DIR__ . '/../..' . '/src/Hook/IntercomBackofficeScriptExtension.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Admin' => __DIR__ . '/../..' . '/src/Model/Intercom/Admin.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Contact' => __DIR__ . '/../..' . '/src/Model/Intercom/Contact.php',
         'Combodo\\iTop\\Extension\\IntercomIntegration\\Model\\Intercom\\Conversation' => __DIR__ . '/../..' . '/src/Model/Intercom/Conversation.php',
