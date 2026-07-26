@@ -16,7 +16,6 @@ use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingCanva
 
 // Necessary for autoloaders to be enabled
 require_once APPROOT.'/application/startup.inc.php';
-require_once APPROOT.'/application/itopwebpage.class.inc.php';
 
 // Processing
 try {
