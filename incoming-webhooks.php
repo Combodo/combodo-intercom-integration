@@ -11,12 +11,11 @@
  * @link https://developers.intercom.com/building-apps/docs/webhooks
  */
 
-use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingWebhooksHandler;
 use Combodo\iTop\Extension\IntercomIntegration\Helper\ConfigHelper;
+use Combodo\iTop\Extension\IntercomIntegration\Service\API\Inbound\IncomingWebhooksHandler;
 
 // Necessary for autoloaders to be enabled
 require_once APPROOT.'/application/startup.inc.php';
-require_once APPROOT.'/application/itopwebpage.class.inc.php';
 
 // Processing
 try {
